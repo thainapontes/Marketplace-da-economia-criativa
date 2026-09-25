@@ -71,21 +71,26 @@ export const produtosService = {
     produtos.splice(indice, 1);
     await delay(null, 300);
   },
-
   async removerEstoque(itens: { produtoId: number; quantidade: number }[]): Promise<void> {
     for (const item of itens) {
+      if (!Number.isInteger(item.quantidade) || item.quantidade <= 0) {
+        throw new ApiError("A quantidade deve ser um número inteiro maior que zero.");
+      }
+
       const produto = produtos.find((atual) => atual.id === item.produtoId);
+
       if (!produto || produto.estoque < item.quantidade) {
         throw new ApiError(`Estoque insuficiente para o produto ${item.produtoId}.`);
       }
     }
+
     itens.forEach((item) => {
       const produto = produtos.find((atual) => atual.id === item.produtoId)!;
       produto.estoque -= item.quantidade;
     });
+
     await delay(null, 200);
   },
-
   /**
    * Inverso de removerEstoque — devolve as unidades ao catálogo. Usado quando um pedido
    * confirmado é cancelado, para que as peças voltem a ficar disponíveis para venda.
