@@ -40,8 +40,6 @@ const produtoInativo = {
 // comprador@origem.com.br) comprou os produtos 1 e 4 (PE-4821) e 3 (PE-4790).
 const historico = { 1: [1, 4, 3] };
 
-const usuarios = [1, 2, 3, 4, 5, 6];
-
 function notaMedia(produtoId) {
   const notas = avaliacoesMock.filter((a) => a.produtoId === produtoId).map((a) => a.nota);
   if (notas.length === 0) return 0;
@@ -65,7 +63,7 @@ const produtos = [
   produtoInativo,
 ].map((p) => ({ ...p, vendas: vendas[p.id] ?? 0, notaMedia: notaMedia(p.id) }));
 
-const catalogo = { produtos, historico, usuarios };
+const catalogo = { produtos, historico };
 const destino = join(aqui, "..", "dados", "catalogo.json");
 writeFileSync(destino, JSON.stringify(catalogo, null, 2) + "\n", "utf-8");
 console.log(`${produtos.length} produtos gravados em ${destino}`);

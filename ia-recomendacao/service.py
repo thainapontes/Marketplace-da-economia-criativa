@@ -134,14 +134,12 @@ class RecomendadorOrigem:
 
     @app.get("/usuarios/{usuario_id}/recomendados")
     async def recomendados_por_usuario(self, usuario_id: str, request: Request, limite: str | None = None):
-        """RF-06 (com RF-07 quando não há histórico)."""
+        """RF-06; usuário sem histórico (inclusive recém-cadastrado) recebe popularidade (RF-07)."""
         autenticado = _usuario_autenticado(request)
         if autenticado is None:
             raise ErroHttp(401, "Autenticação necessária")
         if usuario_id != str(autenticado):
             raise ErroHttp(403, "Só é possível consultar as próprias recomendações")
-        if autenticado not in self.artefato["usuarios"]:
-            raise ErroHttp(404, f"Usuário {usuario_id} não encontrado")
         qtd = _limite(limite, LIMITE_PADRAO_USUARIO)
         itens = await _executar(request, recomendador.por_usuario, self.artefato, autenticado, qtd)
         _registrar(itens, autenticado, {"produto_referencia_id": None})

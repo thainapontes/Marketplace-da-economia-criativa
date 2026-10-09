@@ -33,7 +33,6 @@ def main() -> None:
         "pop": pop,
         "ranking_popularidade": ranking,
         "historico": catalogo["historico"],
-        "usuarios": catalogo["usuarios"],
     }
 
     with bentoml.models.create(

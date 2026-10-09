@@ -50,7 +50,7 @@ Deixe o `just serve` aberto e use outro terminal para os testes. A documentaçã
 | **RF-03** Registro em `recomendacao_log` | cada resposta grava em `ia-recomendacao/logs/recomendacao_log.jsonl` (simula a tabela) |
 | **RF-04** Elegibilidade (sem o próprio produto, sem inativo, sem estoque zero) | `recomendador.elegivel` — vale para todas as rotas |
 | **RF-05** `limite` (padrão 4 / 8; fora de 1–20 → 400) | parâmetro `?limite=` das duas rotas |
-| **RF-06** Personalizada por histórico de compra (401 / 403) | `GET /api/usuarios/{id}/recomendados` com header `X-Usuario-Id` (login simulado) |
+| **RF-06** Personalizada por histórico de compra (401 / 403) | `GET /api/usuarios/{id}/recomendados` com header `X-Usuario-Id` (login simulado); seção "Escolhidos para você" na página inicial |
 | **RF-07** Popularidade (vendas + nota média) como complemento | `recomendador._montar` — critério `popularidade` |
 | **RF-08** Falha ou mais de 2 s → 503 `{ "erro": ... }` | timeout de 2 s nas rotas; header `X-Simular-Falha: erro` ou `lentidao` provoca a falha |
 | **RNF-06** No máximo 2 produtos do mesmo artesão por lista | `recomendador.MAX_POR_ARTESAO` |
@@ -162,8 +162,9 @@ numa primeira execução:
 
 ### Integração com o frontend
 
-O frontend do Origem chama o módulo na página de detalhe do produto
-(`frontend/src/services/api/recomendacoes.service.ts`). Para ver funcionando:
+O frontend do Origem chama o módulo em duas telas, pelo
+`frontend/src/services/api/recomendacoes.service.ts`: na página de detalhe do produto (RF-01) e
+na página inicial, para o comprador logado (RF-06). Para ver funcionando:
 
 ```bash
 # terminal 1 — módulo de IA (dentro de ia-recomendacao/)
@@ -178,8 +179,16 @@ npm run dev
 Em `http://localhost:3000/produtos/1`, a seção de relacionados mostra os produtos 5, 9 e 3
 vindos do módulo, e cada exibição vira linhas novas em `ia-recomendacao/logs/recomendacao_log.jsonl`.
 Se o módulo for desligado, a mesma página continua abrindo e mostra só 5 e 9, do cálculo local
-(RF-08: o frontend trata 503 e timeout como "sem recomendações do módulo" e não exibe erro). Sem
-`.env.local` — como no deploy da Vercel — o frontend usa apenas o cálculo local.
+(RF-08: o frontend trata 503 e timeout como "sem recomendações do módulo" e não exibe erro).
+
+Na página inicial (`http://localhost:3000/`), entre com `comprador@origem.com.br` / `origem123`:
+aparece a seção **"Escolhidos para você, Camila"** com os produtos 5, 7, 9 e 2, montada pelo
+histórico de compra. Um comprador recém-criado em `/cadastro` vê os mais populares (1, 3, 4 e 2).
+Visitantes, artesãos e administradores não veem a seção. Com o módulo desligado, Camila vê 5, 7
+e 9, calculados no navegador a partir dos pedidos da Fake API, e quem não tem compras não vê a
+seção.
+
+Sem `.env.local` — como no deploy da Vercel — o frontend usa apenas o cálculo local nas duas telas.
 
 ---
 

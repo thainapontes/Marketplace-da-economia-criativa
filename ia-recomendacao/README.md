@@ -11,7 +11,7 @@ Base: [lgallindo/recomendador-bentoml](https://github.com/lgallindo/recomendador
 
 | Arquivo | Papel |
 |---|---|
-| `dados/catalogo.json` | catálogo sintético: 11 produtos, histórico de compra e ids de usuário |
+| `dados/catalogo.json` | catálogo sintético: 11 produtos e histórico de compra |
 | `scripts/exportar_catalogo.mjs` | gera o catálogo a partir de `frontend/src/mocks/` (mesmos ids da Fake API) |
 | `treino.py` | offline: calcula a popularidade e grava `recomendador-origem` no store do BentoML |
 | `recomendador.py` | regras puras: elegibilidade, similaridade, histórico, popularidade, limite por artesão |
@@ -27,7 +27,10 @@ Base: [lgallindo/recomendador-bentoml](https://github.com/lgallindo/recomendador
 - **`vendas`:** números inventados (a Fake API não tem contagem de vendas). **`notaMedia`:**
   média das avaliações de `avaliacoes.mock.ts`, ou 0 sem avaliação.
 - **`historico`:** só ids de produto por usuário, tirados de `pedidos.mock.ts` (RNF-03: nada de
-  endereço ou pagamento). Só a usuária 1 tem compras; os usuários 2 a 6 caem na popularidade.
+  endereço ou pagamento). Só a usuária 1 tem compras; qualquer outro usuário — inclusive um
+  comprador recém-cadastrado no frontend — cai na popularidade. Compras novas feitas no checkout
+  da Fake API não chegam ao módulo (o histórico é o do catálogo); seria a leitura da tabela de
+  pedidos no backend real.
 
 ## Regras
 
