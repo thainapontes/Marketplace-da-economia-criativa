@@ -38,7 +38,8 @@ just treino                # = uv run python treino.py  (grava o modelo no store
 just serve                 # = uv run bentoml serve service:RecomendadorOrigem --port 3001
 ```
 
-Deixe o `just serve` aberto e use outro terminal para os testes.
+Deixe o `just serve` aberto e use outro terminal para os testes. A documentação interativa
+(Swagger) das rotas fica em `http://127.0.0.1:3001/api/docs`.
 
 ### Requisitos da AV1 → endpoint
 

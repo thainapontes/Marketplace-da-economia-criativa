@@ -21,9 +21,10 @@ catalogo:
     node scripts/exportar_catalogo.mjs
 
 # Empacote opcional: Bento → imagem OCI → container (precisa de Docker).
+# Com Podman: acrescente `--backend podman` ao containerize e troque docker por podman abaixo.
 imagem:
     uv run bentoml build
-    uv run bentoml containerize RecomendadorOrigem:latest --image-tag recomendador-origem:av2
+    uv run bentoml containerize recomendador_origem:latest --image-tag recomendador-origem:av2
 
 serve-container:
     docker run --rm -p 3001:3000 recomendador-origem:av2 serve
