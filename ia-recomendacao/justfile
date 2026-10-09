@@ -1,0 +1,30 @@
+# Módulo de recomendação do Origem no BentoML
+#
+#   1) treino — offline: lê dados/catalogo.json, calcula popularidade, grava o modelo no store
+#   2) serve  — online: carrega o modelo e responde HTTP na porta 3001
+#
+# A porta é 3001 porque o frontend Next.js do Origem já usa a 3000.
+
+treino:
+    uv run python treino.py
+
+serve:
+    # Requer `just treino` ao menos uma vez. Deixe o terminal aberto.
+    uv run bentoml serve service:RecomendadorOrigem --port 3001
+
+testes:
+    # Com o `just serve` rodando em outro terminal.
+    bash testes/casos.sh
+
+# Regera dados/catalogo.json a partir dos mocks do frontend (Node 23+). Rode `just treino` depois.
+catalogo:
+    node scripts/exportar_catalogo.mjs
+
+# Empacote opcional: Bento → imagem OCI → container (precisa de Docker).
+# Com Podman: acrescente `--backend podman` ao containerize e troque docker por podman abaixo.
+imagem:
+    uv run bentoml build
+    uv run bentoml containerize recomendador_origem:latest --image-tag recomendador-origem:av2
+
+serve-container:
+    docker run --rm -p 3001:3000 recomendador-origem:av2 serve

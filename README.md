@@ -2,9 +2,194 @@
 
 Aplicação web que conecta artesãos e empreendedores criativos de Pernambuco a compradores de
 todo o país. Projeto Integrador. O repositório reúne o **frontend responsivo com Fake API**
-(Avaliação 1) e o **backend da entrega de FCCPD** (concorrência no checkout e fila assíncrona).
+(Avaliação 1), o **backend da entrega de FCCPD** (concorrência no checkout e fila assíncrona) e
+o **módulo de recomendação em BentoML** da disciplina de IA.
 
 **Equipe:** Ana Beatriz Lopes, Everton Nunes, Drielly Santiago e Thainá Pontes.
+
+---
+
+## IA — AV2: mockup do módulo de recomendação (Trilha A, BentoML)
+
+| | |
+|---|---|
+| **Grupo** | Origem |
+| **Integrantes** | Ana Beatriz Lopes, Everton Nunes Batista, Drielly Santiago e Thainá Pontes da Silva |
+| **Turma** | Análise e Desenvolvimento de Sistemas (ADS) — 4º período, 2026.2 |
+| **Projeto** | Origem — Marketplace da Economia Criativa de Pernambuco |
+| **Módulo da AV1** | Recomendação de produtos (similaridade de atributos + histórico + popularidade) |
+| **Código** | [`ia-recomendacao/`](ia-recomendacao/) — detalhes de dados, regras e decisões no [README do módulo](ia-recomendacao/README.md) |
+
+O serviço sobe em `http://127.0.0.1:3001` e expõe as rotas REST especificadas na AV1. O
+catálogo é sintético (10 peças da Fake API do frontend + 1 peça inativa), e o frontend do
+Origem já consome o módulo na página de detalhe do produto (ver [Integração com o
+frontend](#integração-com-o-frontend)).
+
+### Como instalar e subir
+
+Pré-requisitos: [uv](https://docs.astral.sh/uv/) (instala o Python 3.13 sozinho, se faltar),
+`curl` e `python3`. O [just](https://github.com/casey/just) é opcional — cada atalho abaixo
+mostra o comando equivalente.
+
+```bash
+git clone https://github.com/thainapontes/Marketplace-da-economia-criativa.git
+cd Marketplace-da-economia-criativa/ia-recomendacao
+uv sync                    # instala bentoml e fastapi num .venv local
+just treino                # = uv run python treino.py  (grava o modelo no store do BentoML)
+just serve                 # = uv run bentoml serve service:RecomendadorOrigem --port 3001
+```
+
+Deixe o `just serve` aberto e use outro terminal para os testes. A documentação interativa
+(Swagger) das rotas fica em `http://127.0.0.1:3001/api/docs`.
+
+### Requisitos da AV1 → endpoint
+
+| RF / RNF da AV1 | Onde está no mockup |
+|---|---|
+| **RF-01** Similaridade de atributos (artesão 3, técnica 2, região 1) | `GET /api/produtos/{id}/recomendados` — `recomendador.similaridade` |
+| **RF-02** API REST com 200 / 404 | `GET /api/produtos/{id}/recomendados` |
+| **RF-03** Registro em `recomendacao_log` | cada resposta grava em `ia-recomendacao/logs/recomendacao_log.jsonl` (simula a tabela) |
+| **RF-04** Elegibilidade (sem o próprio produto, sem inativo, sem estoque zero) | `recomendador.elegivel` — vale para todas as rotas |
+| **RF-05** `limite` (padrão 4 / 8; fora de 1–20 → 400) | parâmetro `?limite=` das duas rotas |
+| **RF-06** Personalizada por histórico de compra (401 / 403) | `GET /api/usuarios/{id}/recomendados` com header `X-Usuario-Id` (login simulado); seção "Escolhidos para você" na página inicial |
+| **RF-07** Popularidade (vendas + nota média) como complemento | `recomendador._montar` — critério `popularidade` |
+| **RF-08** Falha ou mais de 2 s → 503 `{ "erro": ... }` | timeout de 2 s nas rotas; header `X-Simular-Falha: erro` ou `lentidao` provoca a falha |
+| **RNF-06** No máximo 2 produtos do mesmo artesão por lista | `recomendador.MAX_POR_ARTESAO` |
+| **RNF-07** Quantidade de recomendações por critério num período | `GET /api/recomendacoes/metricas?de=AAAA-MM-DD&ate=AAAA-MM-DD` |
+
+### Casos de teste
+
+Com o serviço no ar (`just serve`), copie e cole cada comando. Os resultados abaixo são os
+obtidos com o catálogo do repositório. Para rodar todos de uma vez e ver OK/FALHOU:
+`just testes` (= `bash testes/casos.sh`, dentro de `ia-recomendacao/`).
+
+**Caso 1 — caminho feliz: peças relacionadas ao produto 1 (RF-01, RF-04, RF-07).** O produto 1
+é um cangaceiro de barro da artesã 1. Só os produtos 5 e 9 têm algo em comum com ele (o 11
+também, mas está inativo), então a lista é completada com os mais populares.
+
+```bash
+curl -s "http://127.0.0.1:3001/api/produtos/1/recomendados?limite=4" | python3 -c 'import json,sys; [print(r["id"], r["criterio"], r["score"]) for r in json.load(sys.stdin)["recomendacoes"]]'
+```
+
+Resultado esperado (id, critério, score):
+
+```
+5 mesmo-artesao 6
+9 mesmo-artesao 4
+3 popularidade 0.8833
+4 popularidade 0.75
+```
+
+**Caso 2 — produto inexistente (RF-02).**
+
+```bash
+curl -s -w ' HTTP %{http_code}\n' http://127.0.0.1:3001/api/produtos/999/recomendados
+```
+
+Resultado esperado:
+
+```
+{"erro":"Produto 999 não encontrado"} HTTP 404
+```
+
+**Caso 3 — `limite` inválido (RF-05).**
+
+```bash
+curl -s -w ' HTTP %{http_code}\n' "http://127.0.0.1:3001/api/produtos/1/recomendados?limite=50"
+```
+
+Resultado esperado:
+
+```
+{"erro":"limite deve ser um inteiro entre 1 e 20"} HTTP 400
+```
+
+**Caso 4 — lentidão vira 503 em 2 segundos (RF-08).**
+
+```bash
+curl -s -w ' HTTP %{http_code} em %{time_total}s\n' -H 'X-Simular-Falha: lentidao' http://127.0.0.1:3001/api/produtos/1/recomendados
+```
+
+Resultado esperado (o tempo fica perto de 2 s):
+
+```
+{"erro":"Recomendações indisponíveis no momento"} HTTP 503 em 2.0…s
+```
+
+**Caso 5 — recomendação pelo histórico de compra (RF-06).** A usuária 1 (Camila,
+`comprador@origem.com.br`) comprou os produtos 1, 3 e 4 na Fake API.
+
+```bash
+curl -s -H 'X-Usuario-Id: 1' "http://127.0.0.1:3001/api/usuarios/1/recomendados?limite=5" | python3 -c 'import json,sys; [print(r["id"], r["criterio"], r["score"]) for r in json.load(sys.stdin)["recomendacoes"]]'
+```
+
+Resultado esperado:
+
+```
+5 historico-tecnica 3
+7 historico-tecnica 3
+9 historico-categoria 1
+2 popularidade 0.54
+6 popularidade 0.15
+```
+
+**Caso 6 — sem autenticação e com outro usuário (RF-06).**
+
+```bash
+curl -s -w ' HTTP %{http_code}\n' http://127.0.0.1:3001/api/usuarios/1/recomendados
+curl -s -w ' HTTP %{http_code}\n' -H 'X-Usuario-Id: 2' http://127.0.0.1:3001/api/usuarios/1/recomendados
+```
+
+Resultado esperado:
+
+```
+{"erro":"Autenticação necessária"} HTTP 401
+{"erro":"Só é possível consultar as próprias recomendações"} HTTP 403
+```
+
+**Caso 7 — log e métricas por critério (RF-03, RNF-07).** Depois dos casos acima:
+
+```bash
+curl -s http://127.0.0.1:3001/api/recomendacoes/metricas
+```
+
+Resultado esperado: `total` maior que zero e a contagem por critério. Os números crescem a cada
+chamada, porque cada recomendação devolvida vira uma linha do log. Logo após os casos 1 a 6,
+numa primeira execução:
+
+```
+{"de":null,"ate":null,"total":9,"porCriterio":{"mesmo-artesao":2,"popularidade":4,"historico-tecnica":2,"historico-categoria":1}}
+```
+
+### Integração com o frontend
+
+O frontend do Origem chama o módulo em duas telas, pelo
+`frontend/src/services/api/recomendacoes.service.ts`: na página de detalhe do produto (RF-01) e
+na página inicial, para o comprador logado (RF-06). Para ver funcionando:
+
+```bash
+# terminal 1 — módulo de IA (dentro de ia-recomendacao/)
+just serve
+# terminal 2 — frontend
+cd frontend
+cp .env.example .env.local      # NEXT_PUBLIC_RECOMENDACAO_URL=http://localhost:3001
+npm install
+npm run dev
+```
+
+Em `http://localhost:3000/produtos/1`, a seção de relacionados mostra os produtos 5, 9 e 3
+vindos do módulo, e cada exibição vira linhas novas em `ia-recomendacao/logs/recomendacao_log.jsonl`.
+Se o módulo for desligado, a mesma página continua abrindo e mostra só 5 e 9, do cálculo local
+(RF-08: o frontend trata 503 e timeout como "sem recomendações do módulo" e não exibe erro).
+
+Na página inicial (`http://localhost:3000/`), entre com `comprador@origem.com.br` / `origem123`:
+aparece a seção **"Escolhidos para você, Camila"** com os produtos 5, 7, 9 e 2, montada pelo
+histórico de compra. Um comprador recém-criado em `/cadastro` vê os mais populares (1, 3, 4 e 2).
+Visitantes, artesãos e administradores não veem a seção. Com o módulo desligado, Camila vê 5, 7
+e 9, calculados no navegador a partir dos pedidos da Fake API, e quem não tem compras não vê a
+seção.
+
+Sem `.env.local` — como no deploy da Vercel — o frontend usa apenas o cálculo local nas duas telas.
 
 ---
 
@@ -67,6 +252,7 @@ Também é possível criar uma conta nova em `/cadastro` (Comprador ou Artesão 
 ```
 frontend/   aplicação Next.js (App Router) — o entregável desta avaliação
 backend/    API Node/Express + PostgreSQL da entrega de FCCPD (checkout concorrente e fila assíncrona)
+ia-recomendacao/  módulo de recomendação em BentoML (AV2 de IA)
 evidencias/ saídas reais dos testes de concorrência e da fila (FCCPD)
 RELATORIO.md  relatório da entrega de FCCPD
 docs/       documentação do projeto

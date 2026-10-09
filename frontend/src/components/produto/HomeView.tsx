@@ -8,6 +8,7 @@ import { CATEGORIAS } from "@/constants/categorias";
 import { ROTAS } from "@/constants/rotas";
 import ArtisanCard from "@/components/artesao/ArtisanCard";
 import ProductList from "./ProductList";
+import RecomendadosParaVoce from "./RecomendadosParaVoce";
 import LoadingState from "@/components/feedback/LoadingState";
 import ErrorState from "@/components/feedback/ErrorState";
 
@@ -85,6 +86,7 @@ export default function HomeView() {
         {carregando && <LoadingState variante="grid" itens={8} mensagem="Carregando produtos..." />}
         {!carregando && erro && <ErrorState mensagem={erro} onTentarNovamente={recarregar} />}
       </div>
+      <RecomendadosParaVoce />
       {!carregando && !erro && <ProductList produtos={filtrados} titulo="Peças únicas para levar para casa" />}
 
       <section className="bg-[#1B4332]">

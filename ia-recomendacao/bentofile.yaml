@@ -1,0 +1,12 @@
+service: "service:RecomendadorOrigem"
+labels:
+  projeto: origem
+include:
+  - "*.py"
+  - "dados/*.json"
+python:
+  packages:
+    - bentoml
+    - fastapi
+models:
+  - recomendador-origem:latest

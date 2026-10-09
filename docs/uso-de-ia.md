@@ -57,7 +57,18 @@ decisões foram tomadas pela aluna, e como o trabalho foi conduzido — está na
 [`RELATORIO.md`](../RELATORIO.md)**, na raiz do repositório, junto com as evidências em
 `evidencias/`.
 
-## 4. Outras ferramentas
+## 4. Claude Code — módulo de recomendação (IA, AV2)
+
+O mockup do módulo de recomendação em BentoML (`ia-recomendacao/`) foi desenvolvido com o
+**Claude Code**, a partir da especificação da AV1 (requisitos RF-01 a RF-08 e RNF-01 a RNF-07,
+`design.md`) e do repositório-base indicado pelo professor (`lgallindo/recomendador-bentoml`).
+A IA gerou o catálogo sintético a partir dos mocks do frontend, o treino, as regras de
+recomendação, o serviço HTTP, o script de casos de teste, a troca do cálculo local pela chamada
+ao módulo em `frontend/src/services/api/recomendacoes.service.ts` e a documentação no README.
+A inclusão do RF-06 (histórico de compra) e a integração com o frontend foram decisões da
+equipe; os casos de teste foram executados e conferidos antes da entrega.
+
+## 5. Outras ferramentas
 
 **ChatGPT, Gemini e GitHub Copilot** foram utilizados na entrega de FCCPD como apoio de
 **estudo**, para esclarecer conceitos da disciplina (race condition, lock, thread × processo,
@@ -66,7 +77,7 @@ fila, idempotência). Conforme declarado pela aluna, não geraram código entreg
 *(Espaço para a equipe registrar outros usos — indicando ferramenta, trecho do projeto em que
 foi usada e o que foi gerado por IA vs. revisado/ajustado pela equipe.)*
 
-## 5. Responsabilidade final
+## 6. Responsabilidade final
 
 Conforme orientação da disciplina, o uso de IA generativa foi tratado como apoio ao
 desenvolvimento, não como substituto do entendimento do time sobre a solução: a equipe é

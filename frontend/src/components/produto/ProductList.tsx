@@ -6,15 +6,17 @@ interface ProductListProps {
   produtos: Produto[];
   titulo?: string;
   descricao?: string;
+  /** Precisa ser único quando houver mais de uma lista na mesma página. */
+  id?: string;
 }
 
-export default function ProductList({ produtos, titulo = "Escolhas da semana", descricao }: ProductListProps) {
+export default function ProductList({ produtos, titulo = "Escolhas da semana", descricao, id = "produtos-destaque" }: ProductListProps) {
   return (
-    <section className="mx-auto max-w-[1440px] px-6 py-16 md:px-12 md:py-24" aria-labelledby="produtos-destaque">
+    <section className="mx-auto max-w-[1440px] px-6 py-16 md:px-12 md:py-24" aria-labelledby={id}>
       <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="section-label">Peças com origem</p>
-          <h2 id="produtos-destaque" className="mt-2 font-display text-4xl text-[#2C2C2C]">
+          <h2 id={id} className="mt-2 font-display text-4xl text-[#2C2C2C]">
             {titulo}
           </h2>
         </div>
