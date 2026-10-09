@@ -13,8 +13,9 @@ o **módulo de recomendação em BentoML** da disciplina de IA.
 
 | | |
 |---|---|
-| **Grupo** | [A PREENCHER: nome do grupo] |
-| **Integrantes** | Ana Beatriz Lopes, Everton Nunes Batista, Drielly Santiago e Thainá Pontes — turma [A PREENCHER] |
+| **Grupo** | Origem |
+| **Integrantes** | Ana Beatriz Lopes, Everton Nunes Batista, Drielly Santiago e Thainá Pontes da Silva |
+| **Turma** | Análise e Desenvolvimento de Sistemas (ADS) — 4º período, 2026.2 |
 | **Projeto** | Origem — Marketplace da Economia Criativa de Pernambuco |
 | **Módulo da AV1** | Recomendação de produtos (similaridade de atributos + histórico + popularidade) |
 | **Código** | [`ia-recomendacao/`](ia-recomendacao/) — detalhes de dados, regras e decisões no [README do módulo](ia-recomendacao/README.md) |
