@@ -61,7 +61,9 @@ Deixe o `just serve` aberto e use outro terminal para os testes. A documentaçã
 
 Com o serviço no ar (`just serve`), copie e cole cada comando. Os resultados abaixo são os
 obtidos com o catálogo do repositório. Para rodar todos de uma vez e ver OK/FALHOU:
-`just testes` (= `bash testes/casos.sh`, dentro de `ia-recomendacao/`).
+`just testes` (= `bash testes/casos.sh`, dentro de `ia-recomendacao/`). O script confere
+os mesmos 7 casos, na mesma ordem; o caso 6 aparece em duas linhas (401 e 403) e, no caso 4,
+ele também falha se a resposta passar de 3 s.
 
 **Caso 1 — caminho feliz: peças relacionadas ao produto 1 (RF-01, RF-04, RF-07).** O produto 1
 é um cangaceiro de barro da artesã 1. Só os produtos 5 e 9 têm algo em comum com ele (o 11
