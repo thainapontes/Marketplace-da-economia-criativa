@@ -2,18 +2,23 @@
   "name": "origem-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "API do Origem — entrega de Fundamentos de Computação Concorrente, Paralela e Distribuída (Unidade 1: concorrência no checkout + fila assíncrona).",
+  "description": "API do Origem — backend real da U2 (contrato em docs/api.md) e rotas de laboratório do FCCPD U1 (concorrência no checkout + fila assíncrona).",
   "type": "module",
   "scripts": {
     "api": "node src/server.js",
     "worker": "node src/worker.js",
+    "test": "node --test testes/api/",
     "teste:concorrencia": "node testes/teste-concorrencia.js",
     "teste:deadlock": "node testes/teste-deadlock.js",
     "teste:fila": "node testes/teste-fila.js",
     "evidencias": "bash testes/gerar-evidencias.sh"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^5.1.0",
     "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.0"
   }
 }

@@ -602,8 +602,13 @@ backend/
 │   ├── fila.js                  enfileirar · reservar · ack · backoff · órfãos
 │   ├── tarefas.js               notificar_pedido e processar_imagem (idempotentes)
 │   ├── worker.js                o processo consumidor (npm run worker)
-│   └── server.js                API HTTP
+│   ├── server.js                API HTTP ([U2] só abre a porta)
+│   ├── app.js                   [U2] monta CORS, rotas e tratamento de erros
+│   ├── config.js                [U2] variáveis de ambiente num lugar só
+│   ├── middlewares/erros.js     [U2] formato único de erro + códigos 23514/40P01
+│   └── rotas/laboratorio.js     [U2] as rotas desta entrega, movidas sem mudança
 └── testes/                      os scripts que geraram as evidências
+    └── api/                     [U2] testes automatizados da API (npm test)
 
 evidencias/                      saídas reais dos testes + README.md explicando cada arquivo
 ```

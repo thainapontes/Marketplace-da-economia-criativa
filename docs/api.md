@@ -8,6 +8,7 @@ service por vez.
 
 - **Base URL:** `http://localhost:3333` em desenvolvimento (`PORT` em `backend/.env.example`).
   No frontend: variável `NEXT_PUBLIC_API_URL`.
+- **CORS:** só as origens de `CORS_ORIGEM` (padrão `http://localhost:3000`). Em produção, incluir a URL da Vercel.
 - **Formato:** JSON (UTF-8) nos dois sentidos. Datas em ISO 8601 UTC (`2026-08-20T14:32:00.000Z`).
   Valores em reais como `number` (`285` ou `35.9`).
 - **Recomendações** não passam por aqui: são servidas pelo módulo de IA
@@ -62,7 +63,13 @@ Todo erro responde com o mesmo corpo — o formato que o backend já usa desde o
 | 409 | `EMAIL_EM_USO` | cadastro com e-mail já existente |
 | 409 | `ESTOQUE_INSUFICIENTE` | checkout sem estoque (vem do checkout seguro da U1) |
 | 409 | `AVALIACAO_DUPLICADA` | o comprador já avaliou este produto |
-| 500 | `ERRO_INTERNO` | qualquer outra falha (a mensagem não expõe detalhes internos) |
+| 404 | `NAO_ENCONTRADO` | rota inexistente (também em JSON, nunca a página HTML padrão do Express) |
+| 400 | `CORPO_INVALIDO` | corpo que não é JSON válido |
+| 500 | `ERRO_INTERNO` | qualquer outra falha. A mensagem é sempre "Erro interno no servidor."; o detalhe vai só para o log |
+
+Implementação: `backend/src/middlewares/erros.js`. As rotas lançam `new ErroApi(status, codigo, mensagem)`
+e o tratador central monta a resposta. Os erros do FCCPD U1 (`PRODUTO_INEXISTENTE`, `VIOLACAO_CHECK_ESTOQUE`,
+`DEADLOCK_DETECTADO`) continuam com os mesmos códigos.
 
 ## 3. Objetos devolvidos
 
@@ -209,6 +216,11 @@ Regras:
 Não fazem parte do produto, mas ficam no ar para os testes e evidências da U1:
 `GET /saude`, `POST /pedidos-naive`, `POST /produtos/:id/imagens` (fila), `GET /fila`,
 `POST /teste/reiniciar`, `POST /teste/fila`. As rotas `/teste/*` só devem existir em desenvolvimento.
+Estão em `backend/src/rotas/laboratorio.js`.
+
+`POST /teste/reiniciar` apaga os pedidos e a fila e recoloca o estoque de todos os produtos. Das
+imagens, apaga **só as que passaram pela fila** (status diferente de `disponivel` ou com hash gravado
+pelo worker): as fotos do catálogo ficam.
 
 ## 9. Mapeamento banco ↔ API
 
