@@ -15,6 +15,12 @@ npm test                  # testes automatizados da API (só leem o banco)
 Já tinha o banco de antes da U2? Recrie uma vez: `docker compose down -v && docker compose up -d`.
 Variáveis de ambiente: veja `.env.example` (todas têm valor padrão para desenvolvimento).
 
+**Usa Podman em vez de Docker** (Fedora, Bazzite)? Funciona: ative o socket
+(`systemctl --user enable --now podman.socket`) e aponte o Docker CLI para ele
+(`docker context create podman --docker host=unix:///run/user/$(id -u)/podman/podman.sock && docker context use podman`).
+Se o banco subir vazio com `Permission denied` no log, é o SELinux: o `docker-compose.yml`
+já monta a pasta `sql/` com a opção `z` para evitar isso.
+
 ## Estrutura
 
 ```
