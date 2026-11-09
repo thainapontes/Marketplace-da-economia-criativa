@@ -216,3 +216,37 @@ UPDATE produto
 -- evita SELECT + UPDATE separados, que permitiriam a duas
 -- requisições concorrentes lerem o mesmo saldo antes de escrever.
 ```
+
+## 8. Extensões da Unidade 2 (backend real)
+
+Acrescentadas em `backend/sql/01b_extensoes_u2.sql`, só com `ADD COLUMN` / `CREATE TABLE`:
+nada das seções 1 a 7 foi alterado. Motivo: o frontend exibe dados que este DDL não
+guardava (ver `docs/api.md`, seção 9).
+
+| Tabela | Acréscimo | Para quê |
+|---|---|---|
+| `usuario` | `avatar_url` | foto de perfil |
+| `artesao` | `foto_url`, `capa_url`, `ano_inicio`, `aprovado` (padrão `FALSE`) | perfil público (HU07) e aprovação pelo admin (HU14) |
+| `artesao_tecnica` (nova) | `(artesao_id, tecnica_id)` | técnicas que o artesão domina (N:N) |
+| `produto` | `preco_original` (`>= preco`) | preço "de" riscado na vitrine |
+| `pedido` | `codigo` (`PE-NNNN`, único, gerado por sequência), `frete`, `previsao_entrega` | dados do pedido exibidos ao comprador. `subtotal` não vira coluna: é `valor_total - frete` |
+| `avaliacao_produto` (nova) | `produto_id`, `usuario_id`, `nota` (1–5), `comentario`, única por `(produto_id, usuario_id)` | avaliações (HU06) e base da análise de sentimento (IA-U2) |
+| — | extensão `unaccent` | busca sem diferenciar acentos (HU04) |
+
+```sql
+CREATE TABLE avaliacao_produto (
+    id         BIGSERIAL PRIMARY KEY,
+    produto_id BIGINT   NOT NULL REFERENCES produto(id) ON DELETE CASCADE,
+    usuario_id BIGINT   NOT NULL REFERENCES usuario(id),
+    nota       SMALLINT NOT NULL CHECK (nota BETWEEN 1 AND 5),
+    comentario TEXT     NOT NULL DEFAULT '',
+    criado_em  TIMESTAMP NOT NULL DEFAULT now(),
+    UNIQUE (produto_id, usuario_id)
+);
+
+CREATE TABLE artesao_tecnica (
+    artesao_id BIGINT NOT NULL REFERENCES artesao(usuario_id) ON DELETE CASCADE,
+    tecnica_id INT    NOT NULL REFERENCES tecnica(id),
+    PRIMARY KEY (artesao_id, tecnica_id)
+);
+```

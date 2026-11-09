@@ -221,6 +221,11 @@ npm run worker            # terminal 2 — consumidor da fila
 npm run evidencias        # regrava a pasta evidencias/ do zero
 ```
 
+> **Já tinha subido o banco antes da U2?** O PostgreSQL só executa os arquivos de `backend/sql/`
+> quando o volume está vazio. Para receber as tabelas/colunas novas (`01b_extensoes_u2.sql`) e o
+> catálogo novo (`02_seed.sql`), recrie o banco uma vez: `docker compose down -v && docker compose up -d`
+> (apaga os dados locais do banco).
+
 ---
 
 ## Como executar o projeto (frontend, Avaliação 1)
@@ -260,7 +265,7 @@ RELATORIO.md  relatório da entrega de FCCPD
 docs/       documentação do projeto
   Origem_DDL.md    modelagem do banco de dados (referência para a Avaliação 2)
   arquitetura.md   arquitetura em camadas do frontend e estratégia de integração futura
-  api.md           contratos de todos os serviços da Fake API
+  api.md           contrato da API REST da U2 (rotas, erros, mapeamento banco ↔ API)
   uso-de-ia.md     registro do uso de IA generativa no desenvolvimento
 ```
 
@@ -313,8 +318,8 @@ pedidos, avaliações e recomendações**, além de indicadores agregados (paine
 Toda tela que busca dado trata os três estados obrigatórios — carregando (`LoadingState`),
 erro (`ErrorState`) e vazio (`EmptyState`).
 
-Contratos completos (parâmetros, retorno, erros e a rota REST equivalente prevista para a
-Avaliação 2) estão documentados em **[`docs/api.md`](docs/api.md)**. A arquitetura em camadas
+O contrato da API REST que substitui a Fake API na Avaliação 2 (rotas, autenticação, erros e
+mapeamento banco ↔ API) está em **[`docs/api.md`](docs/api.md)**. A arquitetura em camadas
 e a estratégia de transição para o backend real estão em **[`docs/arquitetura.md`](docs/arquitetura.md)**.
 
 ## Como a Fake API será substituída pelo backend real (Avaliação 2)

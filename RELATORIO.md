@@ -591,7 +591,8 @@ backend/
 ├── docker-compose.yml           PostgreSQL 16, porta 5434, healthcheck
 ├── sql/
 │   ├── 01_schema.sql            DDL da equipe, executado + CHECK (estoque >= 0)
-│   ├── 02_seed.sql              dados sintéticos (3 produtos, estoque 10)
+│   ├── 01b_extensoes_u2.sql     [U2] colunas/tabelas novas p/ o backend real (aditivo)
+│   ├── 02_seed.sql              dados sintéticos (catálogo dos mocks; [U2] antes: 3 produtos)
 │   └── 03_fila.sql              [Etapa 2] a fila: tentativas, backoff, idempotência
 ├── src/
 │   ├── db.js                    pool + comTransacao (BEGIN/COMMIT/ROLLBACK)

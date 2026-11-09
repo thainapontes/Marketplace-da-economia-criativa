@@ -1,93 +1,249 @@
-# Contratos da Fake API — Origem
+# Contrato da API REST — Origem (Unidade 2)
 
-Todos os métodos abaixo retornam `Promise` e simulam 300–500 ms de latência de rede
-(`services/api/client.ts#delay`). Erros de regra de negócio são lançados como `ApiError`
-(mensagem legível, pronta para `<ErrorState />`). A coluna **Endpoint real (Avaliação 2)** é
-a proposta de rota REST equivalente para quando a Fake API for substituída por um backend
-Node/Express + PostgreSQL seguindo `docs/Origem_DDL.md`.
+Este documento é o **acordo entre backend e frontend** para a troca da Fake API
+(`frontend/src/services/api/*.service.ts`) pelo backend real
+(`backend/`, Node/Express + PostgreSQL). Backend e frontend podem trabalhar em
+paralelo a partir dele: o backend implementa as rotas, o frontend troca um
+service por vez.
 
-## `produtosService` — `src/services/api/produtos.service.ts`
+- **Base URL:** `http://localhost:3333` em desenvolvimento (`PORT` em `backend/.env.example`).
+  No frontend: variável `NEXT_PUBLIC_API_URL`.
+- **Formato:** JSON (UTF-8) nos dois sentidos. Datas em ISO 8601 UTC (`2026-08-20T14:32:00.000Z`).
+  Valores em reais como `number` (`285` ou `35.9`).
+- **Recomendações** não passam por aqui: são servidas pelo módulo de IA
+  (`ia-recomendacao/`, porta 3001), com contrato próprio em
+  [`docs/modulo-recomendacao/design.md`](modulo-recomendacao/design.md).
+- **Banco:** `backend/sql/01_schema.sql` (DDL da equipe) + `01b_extensoes_u2.sql`
+  (colunas e tabelas acrescentadas para a U2) + `02_seed.sql` (o mesmo catálogo
+  dos mocks, mesmos ids de produto). Mapeamento campo a campo na seção 9.
+  Quem já tinha o banco do FCCPD precisa recriá-lo uma vez: `docker compose down -v && docker compose up -d`.
 
-| Método | Assinatura | Descrição | Erros | Endpoint real (Avaliação 2) |
+> Histórico: até a U1 este arquivo descrevia os métodos da Fake API, com uma
+> coluna "endpoint proposto". Essa versão continua no histórico do Git.
+
+---
+
+## 1. Autenticação e perfis
+
+- **JWT** (HS256) devolvido por `/auth/login` e `/auth/registrar`, válido por **8 h**.
+- Enviado em toda rota protegida: `Authorization: Bearer <token>`.
+- Payload do token: `{ "sub": <usuarioId>, "perfil": "comprador" | "artesao" | "administrador" }`.
+- Senhas guardadas com **bcrypt** (custo 10) em `usuario.senha_hash`. Nunca são devolvidas.
+- Contas de demonstração do seed: todas com senha `origem123`
+  (`comprador@origem.com.br`, `maria@origem.com.br`, `joao@origem.com.br`, `ana@origem.com.br`,
+  `sebastiao@origem.com.br`, `admin@origem.com.br`).
+
+Legenda da coluna **Acesso** nas tabelas abaixo:
+
+| Valor | Significado |
+|---|---|
+| público | não precisa de token |
+| logado | qualquer usuário com token válido |
+| comprador / artesão / admin | token com esse perfil |
+| dono | o recurso pertence ao usuário do token (ex.: o produto é do artesão logado) |
+
+## 2. Erros
+
+Todo erro responde com o mesmo corpo — o formato que o backend já usa desde o FCCPD U1:
+
+```json
+{ "erro": "ESTOQUE_INSUFICIENTE", "mensagem": "Estoque insuficiente para o produto 8." }
+```
+
+`mensagem` é legível e pode ir direto para `<ErrorState mensagem={...} />`.
+
+| HTTP | `erro` | Quando |
+|---|---|---|
+| 400 | `CORPO_INVALIDO` | campo obrigatório ausente, tipo errado, nota fora de 1–5, transição de status inválida |
+| 401 | `NAO_AUTENTICADO` | rota protegida sem token, ou token inválido/expirado |
+| 401 | `CREDENCIAIS_INVALIDAS` | e-mail ou senha errados no login (mensagem genérica, não diz qual dos dois) |
+| 403 | `SEM_PERMISSAO` | perfil errado, ou recurso de outro usuário |
+| 404 | `NAO_ENCONTRADO` | id/código inexistente |
+| 409 | `EMAIL_EM_USO` | cadastro com e-mail já existente |
+| 409 | `ESTOQUE_INSUFICIENTE` | checkout sem estoque (vem do checkout seguro da U1) |
+| 409 | `AVALIACAO_DUPLICADA` | o comprador já avaliou este produto |
+| 500 | `ERRO_INTERNO` | qualquer outra falha (a mensagem não expõe detalhes internos) |
+
+## 3. Objetos devolvidos
+
+São os mesmos tipos de `frontend/src/types/`, para que as telas não mudem.
+Diferenças em relação à Fake API estão marcadas com ⚠️.
+
+**`Usuario`** — `types/usuario.ts`
+```json
+{ "id": 2, "nome": "Maria das Graças Silva", "email": "maria@origem.com.br",
+  "perfil": "artesao", "avatarUrl": "https://...", "artesaoId": 2,
+  "criadoEm": "2024-11-03T12:00:00.000Z" }
+```
+⚠️ `artesaoId` agora é **igual ao `id` do usuário** (no banco, `artesao.usuario_id` é a chave do artesão).
+Na Fake API a Maria era usuário 2 / artesão 1; agora é usuário 2 / artesão 2. Nenhuma tela usa id fixo, então nada quebra.
+
+**`Produto`** — `types/produto.ts`
+```json
+{ "id": 1, "nome": "Cangaceiro de Barro — Lampião e Maria Bonita", "descricao": "...",
+  "preco": 285, "precoOriginal": 340,
+  "imagem": "https://...", "imagens": ["https://...", "https://..."],
+  "categoria": "Cerâmica", "tecnica": "Cerâmica", "regiao": "Agreste",
+  "artesao": "Maria das Graças Silva", "artesaoId": 2, "estoque": 3, "status": "ativo" }
+```
+`precoOriginal` só aparece quando existe. `imagem` = primeira de `imagens`.
+
+**`Artesao`** — `types/artesao.ts`
+```json
+{ "id": 2, "usuarioId": 2, "nome": "Maria das Graças Silva", "nomeAtelie": "Ateliê Alto do Moura",
+  "cidade": "Caruaru", "regiao": "Agreste", "biografia": "...",
+  "fotoUrl": "https://...", "capaUrl": "https://...",
+  "tecnicas": ["Cerâmica", "Barro Cozido", "Alto do Moura"],
+  "avaliacaoMedia": 4.5, "totalVendas": 1, "totalProdutos": 3, "desde": 1993, "aprovado": true }
+```
+⚠️ `avaliacaoMedia`, `totalVendas` e `totalProdutos` são **calculados** (média das avaliações dos
+produtos do artesão, nº de pedidos não cancelados com item dele, nº de produtos ativos). Na Fake API
+eram números fixos (ex.: 248 vendas), então os valores exibidos vão mudar.
+
+**`Avaliacao`** — `types/avaliacao.ts`
+```json
+{ "id": 1, "produtoId": 1, "usuarioNome": "Camila Torres", "nota": 5,
+  "comentario": "Peça linda...", "criadoEm": "2026-08-22T10:00:00.000Z" }
+```
+
+**`Pedido`** — `types/pedido.ts`
+```json
+{ "codigo": "PE-4821", "data": "2026-08-20T14:32:00.000Z", "clienteEmail": "comprador@origem.com.br",
+  "enderecoEntrega": "Rua das Flores, 120 — ...",
+  "itens": [ { "produto": { /* Produto */ }, "quantidade": 1 } ],
+  "subtotal": 735, "frete": 0, "total": 735, "status": "entregue",
+  "previsaoEntrega": "2026-08-28T00:00:00.000Z",
+  "pagamento": { "metodo": "cartao", "status": "aprovado", "valor": 735,
+                 "processadoEm": "2026-08-20T14:32:00.000Z" } }
+```
+Em `itens[].produto.preco` vai o **preço pago** (`item_pedido.preco_unitario`), não o preço atual do produto.
+
+## 4. Rotas — autenticação e usuários
+
+| Método e rota | Acesso | Corpo | Resposta | Substitui |
 |---|---|---|---|---|
-| `listarTodos` | `(): Promise<Produto[]>` | Lista todos os produtos ativos | — | `GET /produtos` |
-| `buscarPorId` | `(id: number): Promise<Produto>` | Busca um produto | `ApiError` se não existir | `GET /produtos/:id` |
-| `filtrar` | `(filtros: FiltrosProduto): Promise<Produto[]>` | Filtra por `regiao`, `tecnica`, `categoria`, `busca` (texto livre) e/ou `artesaoId` | — | `GET /produtos?regiao=&tecnica=&categoria=&busca=&artesaoId=` |
-| `criar` | `(dados: NovoProduto): Promise<Produto>` | Publica um novo produto (painel do artesão) | — | `POST /produtos` |
-| `atualizar` | `(id: number, dados: NovoProduto): Promise<Produto>` | Edita um produto já publicado | `ApiError` se não existir | `PUT /produtos/:id` |
-| `remover` | `(id: number): Promise<void>` | Remove um produto do catálogo | `ApiError` se não existir | `DELETE /produtos/:id` |
-| `removerEstoque` | `(itens: {produtoId, quantidade}[]): Promise<void>` | Baixa o estoque de vários produtos numa única operação, usada pelo checkout | `ApiError` se algum item não tiver estoque suficiente | Transação `UPDATE produto SET estoque = estoque - :quantidade WHERE estoque >= :quantidade` (ver seção 7 do DDL) |
+| `POST /auth/registrar` | público | `{ nome, email, senha, perfil, regiao? }` | **201** `{ token, usuario }` | `usuariosService.registrar` |
+| `POST /auth/login` | público | `{ email, senha }` | **200** `{ token, usuario }` | `usuariosService.login` |
+| `GET /auth/eu` | logado | — | **200** `Usuario` | (novo) restaura a sessão ao recarregar a página |
+| `GET /usuarios/:id` | dono ou admin | — | **200** `Usuario` | `usuariosService.buscarPorId` |
 
-## `artesoesService` — `src/services/api/artesoes.service.ts`
+Regras de `POST /auth/registrar`:
+- `perfil` só pode ser `comprador` ou `artesao` → senão **400**. Administrador nunca se autocadastra.
+- `senha` com no mínimo 6 caracteres → senão **400**.
+- `perfil: "artesao"` exige `regiao` (um nome de `GET /filtros`), porque `artesao.regiao_id` é obrigatório
+  no banco. ⚠️ **O formulário de cadastro do frontend precisa ganhar esse campo.**
+  O registro de artesão nasce com `aprovado: false` e `nomeAtelie` = `nome`.
 
-| Método | Assinatura | Descrição | Erros | Endpoint real |
+## 5. Rotas — catálogo
+
+| Método e rota | Acesso | Corpo / query | Resposta | Substitui |
 |---|---|---|---|---|
-| `listarTodos` | `(): Promise<Artesao[]>` | Lista os artesãos **aprovados** (vitrine pública) | — | `GET /artesoes` |
-| `buscarPorId` | `(id: number): Promise<Artesao>` | Busca um artesão | `ApiError` se não existir | `GET /artesoes/:id` |
-| `criarPendente` | `(dados: DadosNovoArtesao): Promise<Artesao>` | Cria o registro de artesão de um novo cadastro (`aprovado: false`) | — | Efeito colateral de `POST /auth/registrar` |
-| `listarPendentes` | `(): Promise<Artesao[]>` | Fila de aprovação (painel admin) | — | `GET /artesoes?aprovado=false` |
-| `aprovar` | `(id: number): Promise<Artesao>` | Aprova o cadastro — o artesão passa a aparecer na vitrine | `ApiError` se não existir | `PATCH /artesoes/:id/aprovar` |
-| `rejeitar` | `(id: number): Promise<void>` | Rejeita e remove o cadastro pendente | `ApiError` se não existir | `PATCH /artesoes/:id/rejeitar` |
+| `GET /filtros` | público | — | **200** `{ regioes: string[], categorias: string[], tecnicas: string[] }` | (novo) opções dos filtros e do formulário de produto |
+| `GET /produtos` | público | `?busca=&regiao=&tecnica=&categoria=&artesaoId=` | **200** `Produto[]` | `produtosService.listarTodos` e `filtrar` |
+| `GET /produtos/:id` | público | — | **200** `Produto` | `produtosService.buscarPorId` |
+| `POST /produtos` | artesão | `NovoProduto` | **201** `Produto` | `produtosService.criar` |
+| `PUT /produtos/:id` | artesão dono | `NovoProduto` | **200** `Produto` | `produtosService.atualizar` |
+| `DELETE /produtos/:id` | artesão dono | — | **204** | `produtosService.remover` |
+| `GET /produtos/:id/avaliacoes` | público | — | **200** `Avaliacao[]` (mais recentes primeiro) | `avaliacoesService.listarPorProduto` |
+| `POST /produtos/:id/avaliacoes` | comprador | `{ nota, comentario }` | **201** `Avaliacao` | `avaliacoesService.criar` |
+| `GET /artesoes` | público | — | **200** `Artesao[]` (só aprovados) | `artesoesService.listarTodos` |
+| `GET /artesoes/:id` | público | — | **200** `Artesao` | `artesoesService.buscarPorId` |
 
-> Aprovação de artesão é a razão de existir do perfil "administrador": só a equipe do Origem
-> aprova quem vende na plataforma — nenhum artesão aprova a si mesmo. Ver `docs/arquitetura.md`.
+Regras:
+- **Listagem pública** (`GET /produtos`) mostra só produtos `ativo` de artesãos **aprovados**.
+  Exceção: com `artesaoId` igual ao do artesão logado, mostra também os inativos dele (painel do artesão).
+- **Filtros** comparam pelo nome (`regiao=Agreste`). O valor `Todas` (usado pelos selects do frontend) é ignorado.
+- **`busca`** procura em nome do produto, nome do artesão e técnica, sem diferenciar maiúsculas e acentos
+  (`unaccent` + `ILIKE`). Com o catálogo pequeno isso é uma varredura sequencial e basta; o índice
+  trigram `idx_produto_nome_trgm` (sobre `nome` puro) **não** é usado por essa expressão. Criar um
+  índice adequado e medir com `EXPLAIN ANALYZE` é tarefa do BD-U2.
+- **`POST`/`PUT /produtos`**: `artesaoId` vem do **token** (o do corpo é ignorado: ninguém publica em
+  nome de outro artesão). `categoria`, `tecnica` e `regiao` são nomes de `GET /filtros` → senão **400**.
+  `imagem` vira a imagem de ordem 0 em `produto_imagem`.
+- **`DELETE /produtos/:id`** é exclusão lógica (`status = 'inativo'`): o produto pode estar em
+  `item_pedido` de pedidos antigos, e a chave estrangeira impede apagar a linha.
+- **Avaliação**: `usuarioNome` vem do token. Uma por comprador por produto (**409** na segunda).
 
-## `usuariosService` — `src/services/api/usuarios.service.ts`
+## 6. Rotas — carrinho e pedidos
 
-| Método | Assinatura | Descrição | Erros | Endpoint real |
+O carrinho **continua no navegador** (Zustand + localStorage), como na U1. As tabelas `carrinho` e
+`item_carrinho` do DDL ficam para uma evolução futura (carrinho entre dispositivos).
+
+| Método e rota | Acesso | Corpo | Resposta | Substitui |
 |---|---|---|---|---|
-| `login` | `(credenciais: CredenciaisLogin): Promise<Usuario>` | Autentica por e-mail/senha | `ApiError` se credenciais inválidas | `POST /auth/login` |
-| `registrar` | `(dados: DadosCadastro): Promise<Usuario>` | Cria um usuário (comprador ou artesão) | `ApiError` se e-mail já existir | `POST /auth/registrar` |
-| `buscarPorId` | `(id: number): Promise<Usuario \| undefined>` | Busca um usuário | — | `GET /usuarios/:id` |
+| `POST /carrinho/validar` | público | `{ itens: [{ produtoId, quantidade }] }` | **200** `ProblemaEstoque[]` (vazio = tudo certo) | `carrinhoService.validarEstoque` |
+| `POST /pedidos` | comprador | `{ enderecoEntrega, metodoPagamento, itens: [{ produtoId, quantidade }] }` | **201** `Pedido` | `pedidosService.criarPedido` |
+| `GET /pedidos` | logado | — | **200** `Pedido[]` (mais recentes primeiro) | `listarPorCliente`, `listarPorArtesao`, `listarTodos` |
+| `GET /pedidos/:codigo` | comprador dono, artesão com item no pedido, ou admin | — | **200** `Pedido` | `pedidosService.buscarPorCodigo` |
+| `PATCH /pedidos/:codigo/status` | artesão com item no pedido | `{ status }` | **200** `Pedido` | `pedidosService.atualizarStatus` |
 
-> Todas as contas de demonstração usam a senha `origem123` (ver `src/mocks/usuarios.mock.ts`).
-> Isso é uma simplificação proposital da Avaliação 1: não há hash de senha nem token de sessão.
+Regras:
+- **`POST /pedidos` reaproveita o checkout seguro do FCCPD U1** (`src/checkout-seguro.js`: `UPDATE`
+  condicional + ordenação por `produto_id` contra deadlock). O cliente manda só `produtoId` e
+  `quantidade`: preço vem do banco (o navegador nunca dita o preço). Frete: grátis a partir de
+  R$ 400 de subtotal, senão R$ 35,90 (mesma regra de `useCarrinho`). Previsão: data do pedido + 8 dias.
+  Pagamento simulado, sempre `aprovado`, status inicial do pedido `confirmado`.
+  ⚠️ O comprador vem do **token**; na U1 vinha no corpo (`compradorId`). Os scripts de teste do FCCPD
+  precisam fazer login antes (tarefa da Fase 1).
+- **`GET /pedidos`** decide o escopo pelo perfil do token — o frontend não precisa (nem pode) escolher:
+  comprador → os dele; artesão → os que têm item dele; admin → todos.
+- **Transições de status** (iguais a `obterProximosStatus`):
+  `pendente → confirmado | cancelado`, `confirmado → em_producao | cancelado`,
+  `em_producao → enviado | cancelado`, `enviado → entregue`. Outras → **400**.
+  Cancelar **devolve o estoque** dos itens na mesma transação.
 
-## `pedidosService` — `src/services/api/pedidos.service.ts`
+## 7. Rotas — indicadores e administração
 
-| Método | Assinatura | Descrição | Erros | Endpoint real |
+| Método e rota | Acesso | Resposta | Fonte no banco | Substitui |
 |---|---|---|---|---|
-| `listarTodos` | `(): Promise<Pedido[]>` | Lista todos os pedidos (painel admin) | — | `GET /pedidos` |
-| `listarPorCliente` | `(email: string): Promise<Pedido[]>` | Pedidos de um comprador | — | `GET /pedidos?clienteEmail=` |
-| `listarPorArtesao` | `(artesaoId: number): Promise<Pedido[]>` | Pedidos que contêm ao menos um item do artesão | — | `GET /pedidos?artesaoId=` (join com `item_pedido`) |
-| `buscarPorCodigo` | `(codigo: string): Promise<Pedido>` | Busca um pedido pelo código (`PE-XXXX`) | `ApiError` se não existir | `GET /pedidos/:codigo` |
-| `criarPedido` | `(dados: DadosNovoPedido): Promise<Pedido>` | Confirma o checkout: valida/baixa estoque, calcula frete e total, **gera o pagamento simulado** e o código numérico do pedido | `ApiError` se carrinho vazio ou estoque insuficiente | `POST /pedidos` (transacional) |
+| `GET /artesoes/eu/indicadores` | artesão | `{ totalVendido, totalPedidos, pedidosPendentes }` | `vw_indicadores_artesao` | cálculo local do painel do artesão (HU13) |
+| `GET /admin/indicadores` | admin | `{ totalUsuarios, produtosAtivos, totalPedidos, totalVendas }` | `vw_indicadores_admin` | cálculo local do painel admin (HU14) |
+| `GET /admin/artesoes/pendentes` | admin | `Artesao[]` | `artesao.aprovado = false` | `artesoesService.listarPendentes` |
+| `PATCH /admin/artesoes/:id/aprovar` | admin | `Artesao` | `aprovado = true` | `artesoesService.aprovar` |
+| `DELETE /admin/artesoes/:id` | admin | **204** | apaga usuário + artesão (cascade) | `artesoesService.rejeitar` |
 
-Regra de frete simulada: grátis a partir de R$ 400,00 em subtotal, senão R$ 35,90 — a mesma
-regra usada no carrinho (`useCarrinho`) e no checkout, para que o total nunca "pule" entre as
-duas telas.
+`DELETE /admin/artesoes/:id` só vale para cadastro **pendente**; artesão aprovado → **400**.
 
-`dados.metodoPagamento` (`"cartao" | "pix" | "boleto"`, escolhido em `/checkout`) vira um
-objeto `Pagamento` (`metodo`, `status`, `valor`, `processadoEm`) salvo em `pedido.pagamento` —
-equivalente à tabela `pagamento` do DDL. Nesta fase o status é sempre `"aprovado"`: não existe
-integração real com nenhuma adquirente, é só a simulação exigida pela Avaliação 1.
+## 8. Rotas do FCCPD U1 que continuam
 
-## `carrinhoService` — `src/services/api/carrinho.service.ts`
+Não fazem parte do produto, mas ficam no ar para os testes e evidências da U1:
+`GET /saude`, `POST /pedidos-naive`, `POST /produtos/:id/imagens` (fila), `GET /fila`,
+`POST /teste/reiniciar`, `POST /teste/fila`. As rotas `/teste/*` só devem existir em desenvolvimento.
 
-| Método | Assinatura | Descrição | Endpoint real |
-|---|---|---|---|
-| `validarEstoque` | `(itens: ItemCarrinho[]): Promise<ProblemaEstoque[]>` | Revalida, no momento do checkout, se o estoque atual ainda atende ao carrinho salvo no navegador | Validação equivalente ocorreria dentro da própria transação de `POST /pedidos` |
+## 9. Mapeamento banco ↔ API
 
-## `recomendacoesService` — `src/services/api/recomendacoes.service.ts`
+Campos que não são uma coluna direta:
 
-| Método | Assinatura | Descrição | Endpoint real |
-|---|---|---|---|
-| `recomendarSimilares` | `(produtoId: number, limite?: number): Promise<Produto[]>` | Recomenda produtos por técnica/artesão/região em comum (score simples), usado em "Você também pode gostar" | `GET /produtos/:id/recomendados` — candidato natural a virar um modelo de IA na Avaliação 2, registrando o resultado em `recomendacao_log` |
+| Campo da API | Origem no banco |
+|---|---|
+| `Usuario.artesaoId` | `usuario.id` quando `perfil = 'artesao'` |
+| `Produto.categoria` / `tecnica` / `regiao` | `JOIN` em `categoria`, `tecnica`, `regiao` (campo `nome`) |
+| `Produto.artesao` | `usuario.nome` do dono (`produto.artesao_id`) |
+| `Produto.imagens` / `imagem` | `produto_imagem.chave_armazenamento` ordenado por `ordem` |
+| `Artesao.id`, `usuarioId` | `artesao.usuario_id` |
+| `Artesao.nome` | `usuario.nome` |
+| `Artesao.biografia` | `artesao.descricao` |
+| `Artesao.cidade` / `regiao` | `regiao.polo` / `regiao.nome` |
+| `Artesao.desde` | `artesao.ano_inicio` |
+| `Artesao.tecnicas` | `artesao_tecnica` → `tecnica.nome` |
+| `Artesao.avaliacaoMedia` | `AVG(avaliacao_produto.nota)` dos produtos do artesão (0 se não houver) |
+| `Artesao.totalVendas` | pedidos não cancelados com item do artesão |
+| `Artesao.totalProdutos` | produtos `ativo` do artesão |
+| `Avaliacao.usuarioNome` | `usuario.nome` do autor |
+| `Pedido.data` | `pedido.criado_em` |
+| `Pedido.clienteEmail` | `usuario.email` do comprador |
+| `Pedido.subtotal` | `valor_total - frete` (não é coluna, para não guardar o mesmo dado duas vezes) |
+| `Pedido.total` | `pedido.valor_total` |
+| `Pedido.pagamento` | tabela `pagamento` (1:1 com o pedido) |
 
-## `avaliacoesService` — `src/services/api/avaliacoes.service.ts`
+## 10. Uso no frontend (Fase 2)
 
-| Método | Assinatura | Descrição | Erros | Endpoint real |
-|---|---|---|---|---|
-| `listarPorProduto` | `(produtoId: number): Promise<Avaliacao[]>` | Lista as avaliações de um produto, mais recentes primeiro | — | `GET /produtos/:id/avaliacoes` |
-| `criar` | `(dados: NovaAvaliacao): Promise<Avaliacao>` | Registra uma avaliação (nota 1–5 + comentário) | `ApiError` se a nota estiver fora de 1–5 | `POST /produtos/:id/avaliacoes` |
-
-> O DDL atual (`docs/Origem_DDL.md`) não tem uma tabela dedicada a avaliações de produto —
-> só `classificacao_produto` (classificação por IA) e `recomendacao_log`. Para a Avaliação 2,
-> sugerimos uma tabela `avaliacao_produto(id, produto_id, usuario_id, nota, comentario, criado_em)`,
-> espelhando `types/avaliacao.ts`.
-
-## Erros
-
-Todas as promessas rejeitadas pela Fake API usam a classe `ApiError` (`services/api/client.ts`),
-para diferenciar uma falha de regra de negócio conhecida (mensagem apresentável ao usuário via
-`<ErrorState mensagem={erro} />`) de um erro de programação inesperado.
+1. `client.ts` ganha um `apiFetch(caminho, opções)` que monta a URL com `NEXT_PUBLIC_API_URL`, envia o
+   token guardado pelo `useAuth` e transforma respostas de erro em `ApiError(mensagem)`.
+   As telas continuam tratando `ApiError` como hoje.
+2. Cada `*.service.ts` mantém **as mesmas assinaturas** e troca o corpo para chamar a rota
+   correspondente (coluna "Substitui"). Exceções que mudam a assinatura:
+   `pedidosService.listarPorCliente/listarPorArtesao/listarTodos` viram chamadas a `GET /pedidos`
+   (o argumento passa a ser ignorado); `usuariosService.login/registrar` passam a receber
+   `{ token, usuario }` e o `useAuth` guarda o token.
+3. Quando o último service for migrado, `frontend/src/mocks/` e `delay()` podem ser apagados.
