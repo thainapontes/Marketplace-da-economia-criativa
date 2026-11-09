@@ -16,6 +16,7 @@ service por vez.
 - **Banco:** `backend/sql/01_schema.sql` (DDL da equipe) + `01b_extensoes_u2.sql`
   (colunas e tabelas acrescentadas para a U2) + `02_seed.sql` (o mesmo catálogo
   dos mocks, mesmos ids de produto). Mapeamento campo a campo na seção 9.
+  Quem já tinha o banco do FCCPD precisa recriá-lo uma vez: `docker compose down -v && docker compose up -d`.
 
 > Histórico: até a U1 este arquivo descrevia os métodos da Fake API, com uma
 > coluna "endpoint proposto". Essa versão continua no histórico do Git.
@@ -153,7 +154,9 @@ Regras:
   Exceção: com `artesaoId` igual ao do artesão logado, mostra também os inativos dele (painel do artesão).
 - **Filtros** comparam pelo nome (`regiao=Agreste`). O valor `Todas` (usado pelos selects do frontend) é ignorado.
 - **`busca`** procura em nome do produto, nome do artesão e técnica, sem diferenciar maiúsculas e acentos
-  (`unaccent` + `ILIKE`, apoiado pelo índice trigram `idx_produto_nome_trgm`).
+  (`unaccent` + `ILIKE`). Com o catálogo pequeno isso é uma varredura sequencial e basta; o índice
+  trigram `idx_produto_nome_trgm` (sobre `nome` puro) **não** é usado por essa expressão. Criar um
+  índice adequado e medir com `EXPLAIN ANALYZE` é tarefa do BD-U2.
 - **`POST`/`PUT /produtos`**: `artesaoId` vem do **token** (o do corpo é ignorado: ninguém publica em
   nome de outro artesão). `categoria`, `tecnica` e `regiao` são nomes de `GET /filtros` → senão **400**.
   `imagem` vira a imagem de ordem 0 em `produto_imagem`.

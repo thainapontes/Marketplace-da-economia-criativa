@@ -221,6 +221,11 @@ npm run worker            # terminal 2 — consumidor da fila
 npm run evidencias        # regrava a pasta evidencias/ do zero
 ```
 
+> **Já tinha subido o banco antes da U2?** O PostgreSQL só executa os arquivos de `backend/sql/`
+> quando o volume está vazio. Para receber as tabelas/colunas novas (`01b_extensoes_u2.sql`) e o
+> catálogo novo (`02_seed.sql`), recrie o banco uma vez: `docker compose down -v && docker compose up -d`
+> (apaga os dados locais do banco).
+
 ---
 
 ## Como executar o projeto (frontend, Avaliação 1)
