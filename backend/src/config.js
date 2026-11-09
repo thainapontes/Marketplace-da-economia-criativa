@@ -6,6 +6,9 @@
 // (exceção: db.js e o worker, que vêm da U1 e continuam como estão).
 // ============================================================================
 
+// Só para desenvolvimento e testes. Nunca use em produção.
+const SEGREDO_DESENVOLVIMENTO = "origem-dev-segredo-nao-usar-em-producao";
+
 export const config = {
   porta: Number(process.env.PORT ?? 3333),
 
@@ -18,4 +21,14 @@ export const config = {
     .split(",")
     .map((origem) => origem.trim())
     .filter(Boolean),
+
+  // [U2 · 1.1] Assinatura dos tokens JWT. Quem conhece o segredo consegue
+  // fabricar um token de administrador, então em produção ele é obrigatório
+  // (veja a checagem abaixo). Em desenvolvimento há um valor padrão.
+  jwtSegredo: process.env.JWT_SECRET ?? SEGREDO_DESENVOLVIMENTO,
+  jwtValidade: process.env.JWT_VALIDADE ?? "8h",
 };
+
+if (process.env.NODE_ENV === "production" && config.jwtSegredo === SEGREDO_DESENVOLVIMENTO) {
+  throw new Error("JWT_SECRET não definido: obrigatório com NODE_ENV=production.");
+}
