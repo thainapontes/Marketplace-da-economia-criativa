@@ -25,7 +25,11 @@ services:
       - "5434:5432"
     volumes:
       - origem-pgdata:/var/lib/postgresql/data
-      - ./sql:/docker-entrypoint-initdb.d:ro
+      # ",z": em sistemas com SELinux (Fedora, Bazzite, RHEL) libera o
+      # container para ler a pasta; sem isso o Postgres sobe com o banco
+      # VAZIO ("Permission denied" no log). Onde não há SELinux (Ubuntu,
+      # Windows, macOS) a opção é ignorada.
+      - ./sql:/docker-entrypoint-initdb.d:ro,z
     healthcheck:
       # Permite que outros comandos esperem o banco estar REALMENTE pronto
       # para aceitar conexões (subir o container != banco pronto).

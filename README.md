@@ -219,6 +219,7 @@ npm install
 npm run api               # terminal 1 — http://localhost:3333
 npm run worker            # terminal 2 — consumidor da fila
 npm run evidencias        # regrava a pasta evidencias/ do zero
+npm test                  # testes automatizados da API (U2), só leem o banco
 ```
 
 > **Já tinha subido o banco antes da U2?** O PostgreSQL só executa os arquivos de `backend/sql/`
