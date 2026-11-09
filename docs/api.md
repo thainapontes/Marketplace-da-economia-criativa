@@ -22,6 +22,19 @@ service por vez.
 > Histórico: até a U1 este arquivo descrevia os métodos da Fake API, com uma
 > coluna "endpoint proposto". Essa versão continua no histórico do Git.
 
+### Status da implementação
+
+Para a Fase 2 saber o que já pode trocar no frontend:
+
+| Grupo de rotas | Etapa | Status |
+|---|---|---|
+| Estrutura, erros, CORS | 1.0 | ✅ pronto |
+| `/auth/*`, `GET /usuarios/:id` | 1.1 | ✅ pronto |
+| `/filtros`, `GET /produtos`, `/artesoes`, `GET` avaliações | 1.2 | ⏳ |
+| `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores` | 1.3 | ⏳ |
+| `/carrinho/validar`, `/pedidos` | 1.4 | ⏳ (`POST /pedidos` ainda é a versão da U1) |
+| `POST` avaliações, `/admin/*` | 1.5 | ⏳ |
+
 ---
 
 ## 1. Autenticação e perfis
@@ -29,7 +42,13 @@ service por vez.
 - **JWT** (HS256) devolvido por `/auth/login` e `/auth/registrar`, válido por **8 h**.
 - Enviado em toda rota protegida: `Authorization: Bearer <token>`.
 - Payload do token: `{ "sub": <usuarioId>, "perfil": "comprador" | "artesao" | "administrador" }`.
+  O backend **não confia no `perfil` do token**: a cada requisição autenticada ele carrega o usuário do
+  banco. Por isso um token de conta apagada deixa de valer na hora, e mudar o perfil de alguém vale já.
+- Segredo de assinatura em `JWT_SECRET`, obrigatório com `NODE_ENV=production`; a validade fica em `JWT_VALIDADE`.
 - Senhas guardadas com **bcrypt** (custo 10) em `usuario.senha_hash`. Nunca são devolvidas.
+- Login com e-mail inexistente e com senha errada dão **a mesma resposta, no mesmo tempo**: não dá
+  para descobrir quem tem conta.
+- Datas: o banco guarda em UTC e a API devolve em ISO com `Z` (ex.: `2025-02-10T12:00:00.000Z`).
 - Contas de demonstração do seed: todas com senha `origem123`
   (`comprador@origem.com.br`, `maria@origem.com.br`, `joao@origem.com.br`, `ana@origem.com.br`,
   `sebastiao@origem.com.br`, `admin@origem.com.br`).
@@ -136,10 +155,18 @@ Em `itens[].produto.preco` vai o **preço pago** (`item_pedido.preco_unitario`),
 
 Regras de `POST /auth/registrar`:
 - `perfil` só pode ser `comprador` ou `artesao` → senão **400**. Administrador nunca se autocadastra.
-- `senha` com no mínimo 6 caracteres → senão **400**.
+- `nome`: 2 a 150 caracteres (espaços nas pontas são removidos).
+- `email`: formato válido, até 180 caracteres. É **salvo em minúsculas** e o login não diferencia
+  maiúsculas. E-mail já usado → **409 `EMAIL_EM_USO`**, inclusive em dois cadastros simultâneos.
+- `senha`: 6 a 72 caracteres (o bcrypt ignora o que passa de 72 bytes; recusamos em vez de cortar).
 - `perfil: "artesao"` exige `regiao` (um nome de `GET /filtros`), porque `artesao.regiao_id` é obrigatório
   no banco. ⚠️ **O formulário de cadastro do frontend precisa ganhar esse campo.**
+  A região é comparada sem diferenciar maiúsculas (`agreste` = `Agreste`); região inexistente → **400**.
+  Usuário e artesão são criados **na mesma transação**: se algo falhar, nenhum dos dois fica gravado.
   O registro de artesão nasce com `aprovado: false` e `nomeAtelie` = `nome`.
+
+Regra de `GET /usuarios/:id`: quem não é admin e pede outro id recebe **403**, exista ou não o
+usuário. Assim ninguém descobre quais ids existem comparando 403 com 404.
 
 ## 5. Rotas — catálogo
 

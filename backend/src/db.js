@@ -4,7 +4,18 @@
 
 import pg from "pg";
 
-const { Pool } = pg;
+const { Pool, types } = pg;
+
+/**
+ * [U2] Datas sem fuso (TIMESTAMP) são UTC.
+ *
+ * As colunas de data do DDL são TIMESTAMP (sem fuso). O PostgreSQL do
+ * docker-compose roda em UTC, então now() grava horário UTC — e o seed também
+ * usa UTC. Mas o driver `pg`, por padrão, interpreta esse valor no fuso da
+ * MÁQUINA que roda o Node: em Recife (-03:00), "12:00" virava 15:00Z e toda
+ * data da API saía 3 horas errada. 1114 é o código do tipo TIMESTAMP.
+ */
+types.setTypeParser(1114, (texto) => new Date(`${texto.replace(" ", "T")}Z`));
 
 /**
  * POOL DE CONEXÕES.
