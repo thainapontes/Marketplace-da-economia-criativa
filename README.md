@@ -260,7 +260,7 @@ RELATORIO.md  relatório da entrega de FCCPD
 docs/       documentação do projeto
   Origem_DDL.md    modelagem do banco de dados (referência para a Avaliação 2)
   arquitetura.md   arquitetura em camadas do frontend e estratégia de integração futura
-  api.md           contratos de todos os serviços da Fake API
+  api.md           contrato da API REST da U2 (rotas, erros, mapeamento banco ↔ API)
   uso-de-ia.md     registro do uso de IA generativa no desenvolvimento
 ```
 
@@ -313,8 +313,8 @@ pedidos, avaliações e recomendações**, além de indicadores agregados (paine
 Toda tela que busca dado trata os três estados obrigatórios — carregando (`LoadingState`),
 erro (`ErrorState`) e vazio (`EmptyState`).
 
-Contratos completos (parâmetros, retorno, erros e a rota REST equivalente prevista para a
-Avaliação 2) estão documentados em **[`docs/api.md`](docs/api.md)**. A arquitetura em camadas
+O contrato da API REST que substitui a Fake API na Avaliação 2 (rotas, autenticação, erros e
+mapeamento banco ↔ API) está em **[`docs/api.md`](docs/api.md)**. A arquitetura em camadas
 e a estratégia de transição para o backend real estão em **[`docs/arquitetura.md`](docs/arquitetura.md)**.
 
 ## Como a Fake API será substituída pelo backend real (Avaliação 2)
