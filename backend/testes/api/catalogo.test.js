@@ -14,7 +14,9 @@ import { app } from "../../src/app.js";
 import { pool } from "../../src/config/database.js";
 import { gerarToken } from "../../src/middlewares/autenticacao.js";
 
-const DOMINIO_TESTE = "@teste.origem.invalid";
+// Domínio próprio deste arquivo: os arquivos de teste rodam em paralelo, e cada um
+// apaga no fim só os usuários que ele criou.
+const DOMINIO_TESTE = "@catalogo.teste.origem.invalid";
 const rodada = Date.now();
 const t = {}; // ids e tokens criados no before()
 

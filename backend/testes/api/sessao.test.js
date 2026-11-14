@@ -14,7 +14,9 @@ import { pool } from "../../src/config/database.js";
 import { config } from "../../src/config/env.js";
 import { COOKIE_SESSAO, opcoesDoCookie } from "../../src/middlewares/autenticacao.js";
 
-const DOMINIO_TESTE = "@teste.origem.invalid";
+// Domínio próprio deste arquivo: os arquivos de teste rodam em paralelo, e cada um
+// apaga no fim só os usuários que ele criou.
+const DOMINIO_TESTE = "@sessao.teste.origem.invalid";
 const rodada = Date.now();
 
 after(async () => {

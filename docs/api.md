@@ -34,7 +34,7 @@ Para o frontend saber o que já pode trocar. As letras são as etapas de [`docs/
 | `/filtros`, `GET /produtos`, `/artesoes`, `GET` avaliações | 1.2 | ✅ pronto |
 | Prisma e pastas routes/controllers/services/repositories (sem mudar as rotas) | A | ✅ pronto |
 | Sessão também por cookie httpOnly, `POST /auth/sair` | B | ✅ pronto |
-| `/carrinho` (salvo no banco), `/pedidos` | D | ⏳ (`POST /pedidos` ainda é a versão da U1) |
+| `/carrinho` (salvo no banco), `/pedidos` | D | ✅ pronto |
 | `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores`, cache | C | ⏳ |
 | `POST` avaliações, `/admin/*`, recomendações passando pela API | E | ⏳ |
 | Swagger em `/docs` | F | ⏳ |
@@ -224,31 +224,54 @@ Regras:
 
 ## 6. Rotas — carrinho e pedidos
 
-O carrinho **continua no navegador** (Zustand + localStorage), como na U1. As tabelas `carrinho` e
-`item_carrinho` do DDL ficam para uma evolução futura (carrinho entre dispositivos).
+O carrinho do **comprador logado fica no banco** (tabelas `carrinho` e `item_carrinho`), para não se
+perder ao trocar de navegador ou dispositivo. Quem **não está logado** continua com o carrinho no
+navegador (Zustand + localStorage) e o envia com `PUT /carrinho` logo depois do login.
 
 | Método e rota | Acesso | Corpo | Resposta | Substitui |
 |---|---|---|---|---|
+| `GET /carrinho` | comprador | — | **200** `ItemCarrinho[]` | estado local do `cartStore` |
+| `PUT /carrinho` | comprador | `{ itens: [{ produtoId, quantidade }] }` (lista vazia = esvaziar) | **200** `ItemCarrinho[]` | estado local do `cartStore` |
+| `DELETE /carrinho` | comprador | — | **204** | `limpar()` do `cartStore` |
 | `POST /carrinho/validar` | público | `{ itens: [{ produtoId, quantidade }] }` | **200** `ProblemaEstoque[]` (vazio = tudo certo) | `carrinhoService.validarEstoque` |
 | `POST /pedidos` | comprador | `{ enderecoEntrega, metodoPagamento, itens: [{ produtoId, quantidade }] }` | **201** `Pedido` | `pedidosService.criarPedido` |
 | `GET /pedidos` | logado | — | **200** `Pedido[]` (mais recentes primeiro) | `listarPorCliente`, `listarPorArtesao`, `listarTodos` |
 | `GET /pedidos/:codigo` | comprador dono, artesão com item no pedido, ou admin | — | **200** `Pedido` | `pedidosService.buscarPorCodigo` |
 | `PATCH /pedidos/:codigo/status` | artesão com item no pedido | `{ status }` | **200** `Pedido` | `pedidosService.atualizarStatus` |
 
-Regras:
+`ItemCarrinho` = `{ produto: Produto, quantidade }`. `ProblemaEstoque` = `{ produtoId, nome, disponivel, solicitado }`.
+
+Regras do carrinho:
+- `PUT /carrinho` **substitui o carrinho inteiro** (não soma). Itens: `produtoId` inteiro, `quantidade` de
+  1 a 99, cada produto uma vez só, no máximo 50 itens. Só produtos da vitrine (ativos, de artesão
+  aprovado); senão **400**. O preço guardado é o do banco.
+- O carrinho **não reserva estoque**: quem garante o estoque é o checkout. Use `POST /carrinho/validar`
+  antes de ir para o pagamento para avisar o comprador.
+- Artesão e admin não têm carrinho (**403**).
+
+Regras dos pedidos:
 - **`POST /pedidos` reaproveita o checkout seguro do FCCPD U1** (`src/services/checkout-seguro.service.js`: `UPDATE`
   condicional + ordenação por `produto_id` contra deadlock). O cliente manda só `produtoId` e
   `quantidade`: preço vem do banco (o navegador nunca dita o preço). Frete: grátis a partir de
   R$ 400 de subtotal, senão R$ 35,90 (mesma regra de `useCarrinho`). Previsão: data do pedido + 8 dias.
-  Pagamento simulado, sempre `aprovado`, status inicial do pedido `confirmado`.
-  ⚠️ O comprador vem do **token**; na U1 vinha no corpo (`compradorId`). Os scripts de teste do FCCPD
-  precisam fazer login antes (tarefa da Fase 1).
-- **`GET /pedidos`** decide o escopo pelo perfil do token — o frontend não precisa (nem pode) escolher:
-  comprador → os dele; artesão → os que têm item dele; admin → todos.
+  Frete e previsão ficam gravados no pedido. Pagamento simulado (`cartao`, `pix` ou `boleto`), sempre
+  `aprovado`; status inicial `confirmado`.
+- O comprador vem do **login**; na U1 vinha no corpo (`compradorId`). Os scripts de carga do FCCPD fazem
+  login antes (`testes/sessao-comprador.js`). A rota de laboratório `POST /pedidos-naive` continua igual.
+- Erros: sem estoque → **409 `ESTOQUE_INSUFICIENTE`** (com `produtoId`), e **nada** é gravado; produto
+  inexistente, inativo ou de artesão não aprovado → **404**; artesão ou admin comprando → **403**.
+- Depois do pedido, o **carrinho salvo é esvaziado**.
+- O pedido **enfileira avisos** para o comprador e para cada artesão envolvido (fila do FCCPD U1,
+  processada pelo worker), na mesma transação do pedido.
+- **`GET /pedidos`** decide o escopo pelo perfil do login — o frontend não precisa (nem pode) escolher:
+  comprador → os dele; artesão → os que têm item dele; admin → todos. Em `itens[].produto.preco`
+  vai o **preço pago**.
+- **`GET /pedidos/:codigo`**: código inexistente → **404**; pedido de outra pessoa → **403**.
 - **Transições de status** (iguais a `obterProximosStatus`):
   `pendente → confirmado | cancelado`, `confirmado → em_producao | cancelado`,
   `em_producao → enviado | cancelado`, `enviado → entregue`. Outras → **400**.
-  Cancelar **devolve o estoque** dos itens na mesma transação.
+  Cancelar **devolve o estoque** dos itens na mesma transação. A troca é condicional: dois
+  cancelamentos ao mesmo tempo devolvem o estoque uma vez só (o segundo recebe 400).
 
 ## 7. Rotas — indicadores e administração
 

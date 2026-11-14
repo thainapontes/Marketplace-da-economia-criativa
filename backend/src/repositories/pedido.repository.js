@@ -77,16 +77,21 @@ export async function gravarPedido(cliente, { compradorId, enderecoEntrega, meto
   const frete = calcularFrete(subtotal);
   const total = arredondar(subtotal + frete);
 
+  // [U2 · etapa D] O pedido também grava o frete e a previsão de entrega (data
+  // do pedido + 8 dias), na mesma transação. O código público ("PE-5001") vem
+  // do DEFAULT da coluna.
   const pedido = await cliente.query(
-    `INSERT INTO pedido (comprador_id, status, endereco_entrega, valor_total)
-     VALUES ($1, 'confirmado', $2, $3)
-     RETURNING id, criado_em`,
-    [compradorId, enderecoEntrega, total],
+    `INSERT INTO pedido (comprador_id, status, endereco_entrega, valor_total, frete, previsao_entrega)
+     VALUES ($1, 'confirmado', $2, $3, $4, (now() + interval '8 days')::date)
+     RETURNING id, codigo, criado_em`,
+    [compradorId, enderecoEntrega, total, frete],
   );
 
   // BIGSERIAL (int8) chega no Node como string, para não perder precisão em
   // números gigantes. Convertemos para número aqui.
   const pedidoId = Number(pedido.rows[0].id);
+  // Código público ("PE-5001"): é o que o comprador e o artesão veem nas telas.
+  const codigo = pedido.rows[0].codigo;
 
   for (const item of itensConfirmados) {
     await cliente.query(
@@ -136,7 +141,7 @@ export async function gravarPedido(cliente, { compradorId, enderecoEntrega, meto
       pedidoId,
       usuarioId: compradorId,
       papel: "comprador",
-      mensagem: `Seu pedido #${pedidoId} foi confirmado. Total: R$ ${total.toFixed(2)}.`,
+      mensagem: `Seu pedido ${codigo} foi confirmado. Total: R$ ${total.toFixed(2)}.`,
     },
   });
 
@@ -150,13 +155,14 @@ export async function gravarPedido(cliente, { compradorId, enderecoEntrega, meto
         pedidoId,
         usuarioId: artesaoId,
         papel: "artesao",
-        mensagem: `Você recebeu uma nova venda no pedido #${pedidoId}.`,
+        mensagem: `Você recebeu uma nova venda no pedido ${codigo}.`,
       },
     });
   }
 
   return {
     pedidoId,
+    codigo,
     criadoEm: pedido.rows[0].criado_em,
     subtotal,
     frete,

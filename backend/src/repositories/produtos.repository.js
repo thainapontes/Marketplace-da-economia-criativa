@@ -5,7 +5,7 @@
 import { prisma } from "../config/prisma.js";
 
 /** Relações que montam um `Produto` (ver utils/mapeadores/catalogo.js). */
-const INCLUDE_PRODUTO = {
+export const INCLUDE_PRODUTO = {
   artesao: { select: { aprovado: true, usuario: { select: { nome: true } } } },
   categoria: { select: { nome: true } },
   tecnica: { select: { nome: true } },
@@ -59,3 +59,12 @@ export async function listar({ somentePublicos, artesaoId, regiao, tecnica, cate
 export function buscarPorId(id) {
   return prisma.produto.findUnique({ where: { id: BigInt(id) }, include: INCLUDE_PRODUTO });
 }
+
+/** Vários produtos de uma vez (carrinho, pedido). Os que não existem simplesmente não vêm. */
+export function buscarPorIds(ids) {
+  return prisma.produto.findMany({ where: { id: { in: ids.map(BigInt) } }, include: INCLUDE_PRODUTO });
+}
+
+/** Produto que aparece na vitrine: ativo e de artesão aprovado. */
+export const ehPublico = (produto) => produto?.status === "ativo" && produto.artesao.aprovado;
+

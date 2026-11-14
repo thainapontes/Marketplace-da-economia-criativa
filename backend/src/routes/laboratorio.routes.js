@@ -6,7 +6,6 @@
 // divididas em controller, service e repository; o SQL é o mesmo da U1.
 //
 //   GET  /saude                — o banco está de pé? (usado pelos scripts de teste)
-//   POST /pedidos              — checkout SEGURO (ou o ingênuo, se NAIVE_CHECKOUT=true)
 //   POST /pedidos-naive        — checkout INGÊNUO sempre, para o teste comparativo
 //   POST /produtos/:id/imagens — registra a imagem e ENFILEIRA o processamento; 202 na hora
 //   GET  /fila                 — estado da fila por status + dead-letter
@@ -15,7 +14,8 @@
 //
 // GET /produtos/:id saiu daqui na etapa 1.2 (hoje em routes/produtos.routes.js,
 // com os mesmos campos id/nome/preco/estoque/status que o teste de concorrência
-// lê). POST /pedidos sai na etapa D do plano da U2.
+// lê). POST /pedidos saiu na etapa D (routes/pedidos.routes.js): agora exige
+// login de comprador, e o checkout por trás é o mesmo checkout seguro da U1.
 // ============================================================================
 
 import { Router } from "express";
@@ -24,7 +24,6 @@ import * as laboratorioController from "../controllers/laboratorio.controller.js
 export const rotasLaboratorio = Router();
 
 rotasLaboratorio.get("/saude", laboratorioController.saude);
-rotasLaboratorio.post("/pedidos", laboratorioController.criarPedido);
 rotasLaboratorio.post("/pedidos-naive", laboratorioController.criarPedidoSemProtecao);
 rotasLaboratorio.post("/produtos/:id/imagens", laboratorioController.registrarImagem);
 rotasLaboratorio.get("/fila", laboratorioController.resumoDaFila);

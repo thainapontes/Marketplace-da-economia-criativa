@@ -57,6 +57,8 @@ testes/
 | Produtos e avaliações | `produtos` | `produtos` | `produtos` | `produtos`, `avaliacoes` |
 | Artesãos | `artesoes` | `artesoes` | `artesoes` | `artesoes` |
 | Filtros | `filtros` | `filtros` | `filtros` | `filtros` |
+| Carrinho | `carrinho` | `carrinho` | `carrinho` | `carrinho`, `produtos` |
+| Pedidos | `pedidos` | `pedidos` | `pedidos` (+ `checkout-seguro`) | `pedidos` (leitura e status), `pedido` (gravação, SQL da U1), `carrinho` |
 | Laboratório FCCPD U1 | `laboratorio` | `laboratorio` | `laboratorio`, `checkout-seguro`, `checkout-ingenuo`, `tarefas` | `laboratorio`, `pedido`, `fila` |
 
 ### Prisma e SQL puro
@@ -98,9 +100,11 @@ testes/
 
 - Datas: `config/database.js` lê as colunas `TIMESTAMP` como UTC, e o Prisma também as trata como
   UTC. Sem isso, toda data sairia deslocada pelo fuso da máquina (3 h em Recife).
-- `POST /pedidos` ainda é a versão da U1 (em `routes/laboratorio.routes.js`) e será substituída na
-  etapa D do plano (`docs/plano-u2.md`). `GET /produtos/:id` já é a do contrato e mantém os campos
-  que os testes da U1 leem.
+- `POST /pedidos` é a do contrato (exige login de comprador) e usa por trás o checkout seguro da U1.
+  Os scripts de carga do FCCPD fazem login antes (`testes/sessao-comprador.js`). `GET /produtos/:id`
+  mantém os campos que os testes da U1 leem.
+- Testes que criam dados usam um domínio de e-mail próprio por arquivo
+  (`@<arquivo>.teste.origem.invalid`): os arquivos rodam em paralelo e cada um apaga só o que criou.
 - `POST /teste/reiniciar` apaga **todos** os pedidos (inclusive os 3 do seed) e a fila, e recoloca o
   estoque. Depois da bateria da U1, volte ao seed com `docker compose down -v && docker compose up -d`.
 - `npm install` roda `prisma generate` sozinho (postinstall). Com npm 11 ou mais novo, os scripts
