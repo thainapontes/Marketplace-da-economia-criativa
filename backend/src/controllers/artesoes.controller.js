@@ -12,3 +12,7 @@ export async function listar(_req, res) {
 export async function buscarPorId(req, res) {
   res.json(await artesoesService.buscarPorId(idDaUrl(req.params.id, "Artesão"), req.usuario));
 }
+
+export async function indicadores(req, res) {
+  res.json(await artesoesService.indicadores(req.usuario));
+}

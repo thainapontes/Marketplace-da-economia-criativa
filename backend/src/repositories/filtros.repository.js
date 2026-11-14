@@ -19,3 +19,16 @@ export async function listarOpcoes() {
     tecnicas: nomes(tecnicas),
   };
 }
+
+/**
+ * Categoria ou técnica pelo nome, sem diferenciar maiúsculas. Comparado em
+ * JavaScript (as tabelas são pequenas) para que "%" ou "_" digitados não
+ * funcionem como curinga, como aconteceria num ILIKE.
+ */
+async function porNome(tabela, nome) {
+  const registros = await prisma[tabela].findMany({ orderBy: { id: "asc" } });
+  return registros.find((registro) => registro.nome.toLowerCase() === nome.toLowerCase()) ?? null;
+}
+
+export const buscarCategoriaPorNome = (nome) => porNome("categoria", nome);
+export const buscarTecnicaPorNome = (nome) => porNome("tecnica", nome);

@@ -5,6 +5,7 @@
 import { config } from "../config/env.js";
 import { criarPedidoIngenuo } from "./checkout-ingenuo.service.js";
 import * as laboratorioRepository from "../repositories/laboratorio.repository.js";
+import { esquecerVitrine } from "./produtos.service.js";
 
 export async function saude() {
   await laboratorioRepository.verificarConexao();
@@ -12,8 +13,10 @@ export async function saude() {
 }
 
 /** Checkout ingênuo, sempre. Existe só para o teste comparativo. */
-export function criarPedidoSemProtecao(dados) {
-  return criarPedidoIngenuo(dados);
+export async function criarPedidoSemProtecao(dados) {
+  const pedido = await criarPedidoIngenuo(dados);
+  esquecerVitrine(); // o estoque mudou
+  return pedido;
 }
 
 export function registrarImagem(dados) {
@@ -31,5 +34,6 @@ export async function enfileirarLoteDeTeste({ quantidade, lote }) {
 
 export async function reiniciar(estoque) {
   await laboratorioRepository.reiniciar(estoque);
+  esquecerVitrine(); // estoque e imagens mudaram
   return { ok: true, estoque };
 }

@@ -42,6 +42,7 @@ src/
 │   ├── erros.js              ErroApi + tratadorDeErros (formato { erro, mensagem })
 │   └── autenticacao.js       gerarToken, cookie de sessão, autenticar, autenticarSeHouver, exigirPerfil
 └── utils/
+    ├── cache.js              cache em memória com validade (vitrine e filtros; X-Cache: HIT/MISS)
     ├── validacao.js          validação de entrada (texto, e-mail, id de URL) → 400
     └── mapeadores/           registro do banco → objeto da API (Usuario, Produto, Artesao, Avaliacao)
 prisma/schema.prisma          GERADO a partir do banco (npm run prisma:pull) — não editar à mão

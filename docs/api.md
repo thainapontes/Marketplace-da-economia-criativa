@@ -35,7 +35,7 @@ Para o frontend saber o que já pode trocar. As letras são as etapas de [`docs/
 | Prisma e pastas routes/controllers/services/repositories (sem mudar as rotas) | A | ✅ pronto |
 | Sessão também por cookie httpOnly, `POST /auth/sair` | B | ✅ pronto |
 | `/carrinho` (salvo no banco), `/pedidos` | D | ✅ pronto |
-| `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores`, cache | C | ⏳ |
+| `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores`, cache | C | ✅ pronto |
 | `POST` avaliações, `/admin/*`, recomendações passando pela API | E | ⏳ |
 | Swagger em `/docs` | F | ⏳ |
 
@@ -220,6 +220,15 @@ Regras:
   `imagem` vira a imagem de ordem 0 em `produto_imagem`.
 - **`DELETE /produtos/:id`** é exclusão lógica (`status = 'inativo'`): o produto pode estar em
   `item_pedido` de pedidos antigos, e a chave estrangeira impede apagar a linha.
+  Produto de outro artesão → **403**; inexistente → **404**. O produto inativo continua no painel do dono
+  (`GET /produtos?artesaoId=<o próprio>`) e nos pedidos antigos.
+- **Validação de `NovoProduto`**: `nome` 3–150; `preco` número > 0 com até 2 casas; `estoque` inteiro ≥ 0;
+  `imagem` endereço `http(s)`; `descricao` opcional (até 2000). Ao editar, só a foto principal (ordem 0)
+  é trocada; as outras fotos ficam.
+- **Cache**: `GET /produtos` (vitrine pública) e `GET /filtros` ficam em memória por `CACHE_TTL_MS`
+  (padrão 30 s). Toda resposta traz `X-Cache: HIT` (da memória) ou `MISS` (do banco). Criar, editar ou
+  desativar produto, criar pedido e cancelar pedido limpam o cache da vitrine. O painel do artesão nunca
+  usa cache. Medição: ~3,8× mais requisições por segundo com o cache ligado.
 - **Avaliação**: `usuarioNome` vem do token. Uma por comprador por produto (**409** na segunda).
 
 ## 6. Rotas — carrinho e pedidos
@@ -277,13 +286,19 @@ Regras dos pedidos:
 
 | Método e rota | Acesso | Resposta | Fonte no banco | Substitui |
 |---|---|---|---|---|
-| `GET /artesoes/eu/indicadores` | artesão | `{ totalVendido, totalPedidos, pedidosPendentes }` | `vw_indicadores_artesao` | cálculo local do painel do artesão (HU13) |
+| `GET /artesoes/eu/indicadores` | artesão | `{ totalVendido, totalPedidos, pedidosPendentes, produtosAtivos }` | consulta no repository (ver abaixo) | cálculo local do painel do artesão (HU13) |
 | `GET /admin/indicadores` | admin | `{ totalUsuarios, produtosAtivos, totalPedidos, totalVendas }` | `vw_indicadores_admin` | cálculo local do painel admin (HU14) |
 | `GET /admin/artesoes/pendentes` | admin | `Artesao[]` | `artesao.aprovado = false` | `artesoesService.listarPendentes` |
 | `PATCH /admin/artesoes/:id/aprovar` | admin | `Artesao` | `aprovado = true` | `artesoesService.aprovar` |
 | `DELETE /admin/artesoes/:id` | admin | **204** | apaga usuário + artesão (cascade) | `artesoesService.rejeitar` |
 
 `DELETE /admin/artesoes/:id` só vale para cadastro **pendente**; artesão aprovado → **400**.
+
+**Indicadores do artesão:** só a parte dele (num pedido com itens de duas artesãs, cada uma vê o subtotal
+dos próprios itens), sem pedidos cancelados. `pedidosPendentes` = pedidos em `pendente` ou `confirmado`
+(ainda não começou a produzir), como a tela do painel já calcula. Por ora **não usa** a view
+`vw_indicadores_artesao`: ela soma pedidos cancelados e só conta o status `pendente` (que nenhum pedido
+novo tem, porque todos nascem `confirmado`). A correção da view está com a equipe de banco.
 
 ## 8. Rotas do FCCPD U1 que continuam
 

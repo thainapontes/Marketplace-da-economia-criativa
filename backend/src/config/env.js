@@ -34,6 +34,9 @@ export const config = {
   // [U2 · B] O token também vai num cookie httpOnly (o JavaScript da página
   // não consegue lê-lo). `Secure` = o navegador só envia o cookie por HTTPS:
   // ligado em produção; em desenvolvimento a API roda em http://localhost.
+  // [U2 · C] Validade do cache da vitrine e dos filtros, em ms (0 = desligado).
+  cacheTtlMs: Number(process.env.CACHE_TTL_MS ?? 30_000),
+
   cookieSeguro: (process.env.COOKIE_SECURE ?? (process.env.NODE_ENV === "production" ? "true" : "false")) === "true",
 };
 
