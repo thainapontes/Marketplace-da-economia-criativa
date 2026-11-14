@@ -42,3 +42,25 @@ export function idDaUrl(valor, recurso) {
   }
   return id;
 }
+
+/**
+ * Lista de itens { produtoId, quantidade } (carrinho e pedido).
+ * Sem produto repetido: cada produto aparece uma vez, com a quantidade total.
+ */
+export function itensDeCompra(valor, { min = 1, max = 50 } = {}) {
+  if (!Array.isArray(valor)) throw invalido("Envie os itens como uma lista.");
+  if (valor.length < min) throw invalido("Envie pelo menos um item.");
+  if (valor.length > max) throw invalido(`No máximo ${max} itens por vez.`);
+  const vistos = new Set();
+  return valor.map((item) => {
+    const produtoId = item?.produtoId;
+    const quantidade = item?.quantidade;
+    if (!Number.isSafeInteger(produtoId) || produtoId < 1) throw invalido("Cada item precisa de um produtoId inteiro.");
+    if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 99) {
+      throw invalido("A quantidade de cada item precisa ser um número inteiro de 1 a 99.");
+    }
+    if (vistos.has(produtoId)) throw invalido(`O produto ${produtoId} aparece mais de uma vez.`);
+    vistos.add(produtoId);
+    return { produtoId, quantidade };
+  });
+}

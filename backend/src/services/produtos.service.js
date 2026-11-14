@@ -26,7 +26,7 @@ export async function listar(filtros, usuario) {
 /** Produto que o usuário pode ver, ou 404. */
 async function buscarVisivel(id, usuario) {
   const produto = await produtosRepository.buscarPorId(id);
-  const publico = produto?.status === "ativo" && produto.artesao.aprovado;
+  const publico = produtosRepository.ehPublico(produto);
   if (!produto || (!publico && !ehAdmin(usuario) && !ehDono(usuario, produto.artesao_id))) {
     throw new ErroApi(404, "NAO_ENCONTRADO", `Produto ${id} não encontrado.`);
   }
