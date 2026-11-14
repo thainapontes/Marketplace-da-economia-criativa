@@ -4,7 +4,7 @@
 // ============================================================================
 
 import * as authService from "../services/auth.service.js";
-import { gravarCookieDeSessao } from "../middlewares/autenticacao.js";
+import { gravarCookieDeSessao, apagarCookieDeSessao } from "../middlewares/autenticacao.js";
 import { paraUsuario } from "../utils/mapeadores/usuario.js";
 import { exigirCorpo, texto, email as validarEmail, invalido } from "../utils/validacao.js";
 
@@ -50,4 +50,15 @@ export async function login(req, res) {
 
 export function eu(req, res) {
   res.json(paraUsuario(req.usuario));
+}
+
+/**
+ * Encerra a sessão do navegador apagando o cookie. Não exige login: sair com
+ * uma sessão já vencida também precisa funcionar.
+ * O JWT em si continua válido até vencer (não há lista de tokens revogados);
+ * quem usa o cabeçalho Bearer "sai" simplesmente descartando o token.
+ */
+export function sair(_req, res) {
+  apagarCookieDeSessao(res);
+  res.status(204).end();
 }
