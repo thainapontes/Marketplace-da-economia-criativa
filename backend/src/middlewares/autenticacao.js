@@ -29,6 +29,32 @@ export function gerarToken(usuario) {
   });
 }
 
+/** Nome do cookie que guarda o token de sessão. */
+export const COOKIE_SESSAO = "origem_sessao";
+
+/**
+ * Opções do cookie de sessão:
+ *   httpOnly       o JavaScript da página não lê o cookie: um script malicioso
+ *                  injetado na página não consegue roubar a sessão;
+ *   sameSite lax   o navegador não envia o cookie em POST/PUT/DELETE vindos de
+ *                  OUTRO site, o que bloqueia o ataque CSRF (um site qualquer
+ *                  disparando uma compra em nome de quem está logado);
+ *   secure         só por HTTPS (produção).
+ */
+export function opcoesDoCookie(seguro = config.cookieSeguro) {
+  return { httpOnly: true, sameSite: "lax", secure: seguro, path: "/" };
+}
+
+/** Grava o token no cookie, vencendo junto com ele. */
+export function gravarCookieDeSessao(res, token) {
+  const { exp } = jwt.decode(token);
+  res.cookie(COOKIE_SESSAO, token, { ...opcoesDoCookie(), expires: new Date(exp * 1000) });
+}
+
+export function apagarCookieDeSessao(res) {
+  res.clearCookie(COOKIE_SESSAO, opcoesDoCookie());
+}
+
 function naoAutenticado(mensagem = "Faça login para continuar.") {
   return new ErroApi(401, "NAO_AUTENTICADO", mensagem);
 }

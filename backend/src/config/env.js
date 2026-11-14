@@ -30,6 +30,11 @@ export const config = {
   // (veja a checagem abaixo). Em desenvolvimento há um valor padrão.
   jwtSegredo: process.env.JWT_SECRET ?? SEGREDO_DESENVOLVIMENTO,
   jwtValidade: process.env.JWT_VALIDADE ?? "8h",
+
+  // [U2 · B] O token também vai num cookie httpOnly (o JavaScript da página
+  // não consegue lê-lo). `Secure` = o navegador só envia o cookie por HTTPS:
+  // ligado em produção; em desenvolvimento a API roda em http://localhost.
+  cookieSeguro: (process.env.COOKIE_SECURE ?? (process.env.NODE_ENV === "production" ? "true" : "false")) === "true",
 };
 
 if (process.env.NODE_ENV === "production" && config.jwtSegredo === SEGREDO_DESENVOLVIMENTO) {

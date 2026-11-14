@@ -4,6 +4,7 @@
 // ============================================================================
 
 import * as authService from "../services/auth.service.js";
+import { gravarCookieDeSessao } from "../middlewares/autenticacao.js";
 import { paraUsuario } from "../utils/mapeadores/usuario.js";
 import { exigirCorpo, texto, email as validarEmail, invalido } from "../utils/validacao.js";
 
@@ -29,7 +30,9 @@ export async function registrar(req, res) {
     perfil: corpo.perfil,
     regiao: corpo.perfil === "artesao" ? texto(corpo.regiao, "regiao", { max: 100 }) : null,
   };
-  res.status(201).json(await authService.registrar(dados));
+  const sessao = await authService.registrar(dados);
+  gravarCookieDeSessao(res, sessao.token);
+  res.status(201).json(sessao);
 }
 
 export async function login(req, res) {
@@ -38,7 +41,11 @@ export async function login(req, res) {
     throw invalido("Informe e-mail e senha.");
   }
   // E-mails são salvos em minúsculas: "Maria@Origem.com.br" é a mesma conta.
-  res.json(await authService.login({ email: corpo.email.trim().toLowerCase(), senha: corpo.senha }));
+  const sessao = await authService.login({ email: corpo.email.trim().toLowerCase(), senha: corpo.senha });
+  // A sessão vai no cookie (o navegador guarda e envia sozinho) e também no
+  // corpo, como token, para quem usa o cabeçalho Bearer (testes, curl, IA).
+  gravarCookieDeSessao(res, sessao.token);
+  res.json(sessao);
 }
 
 export function eu(req, res) {
