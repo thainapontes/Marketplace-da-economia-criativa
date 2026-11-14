@@ -16,6 +16,7 @@ import { pool } from "../../src/config/database.js";
 const DOMINIO_TESTE = "@carrinho.teste.origem.invalid";
 let token;
 let tokenMaria;
+const fora = {}; // produtos que existem mas não estão na vitrine
 
 before(async () => {
   const r = await request(app)
@@ -23,6 +24,26 @@ before(async () => {
     .send({ nome: "Comprador Carrinho", email: `carrinho${Date.now()}${DOMINIO_TESTE}`, senha: "segredo1", perfil: "comprador" });
   token = r.body.token;
   tokenMaria = (await request(app).post("/auth/login").send({ email: "maria@origem.com.br", senha: "origem123" })).body.token;
+
+  // Um produto inativo (de artesão aprovado) e um ativo de artesão pendente.
+  const criarArtesao = async (apelido, aprovado) => {
+    const { rows } = await pool.query(
+      "INSERT INTO usuario (nome, email, senha_hash, perfil) VALUES ($1, $2, 'x', 'artesao') RETURNING id",
+      [`Artesão ${apelido}`, `${apelido}${Date.now()}${DOMINIO_TESTE}`],
+    );
+    await pool.query("INSERT INTO artesao (usuario_id, nome_atelie, regiao_id, aprovado) VALUES ($1, 'Ateliê', 1, $2)", [rows[0].id, aprovado]);
+    return rows[0].id;
+  };
+  const criarProduto = async (artesaoId, status) => {
+    const { rows } = await pool.query(
+      `INSERT INTO produto (artesao_id, categoria_id, tecnica_id, regiao_id, nome, preco, estoque, status)
+       VALUES ($1, 1, 1, 1, 'Fora da vitrine', 10, 5, $2) RETURNING id`,
+      [artesaoId, status],
+    );
+    return Number(rows[0].id);
+  };
+  fora.inativo = await criarProduto(await criarArtesao("aprovado", true), "inativo");
+  fora.dePendente = await criarProduto(await criarArtesao("pendente", false), "ativo");
 });
 
 after(async () => {
@@ -30,6 +51,10 @@ after(async () => {
   // sem cascade: apagamos o carrinho antes do usuário.
   await pool.query(
     "DELETE FROM carrinho WHERE usuario_id IN (SELECT id FROM usuario WHERE email LIKE $1)",
+    [`%${DOMINIO_TESTE}`],
+  );
+  await pool.query(
+    "DELETE FROM produto WHERE artesao_id IN (SELECT id FROM usuario WHERE email LIKE $1)",
     [`%${DOMINIO_TESTE}`],
   );
   await pool.query("DELETE FROM usuario WHERE email LIKE $1", [`%${DOMINIO_TESTE}`]);
@@ -103,6 +128,14 @@ describe("carrinho do comprador", () => {
     assert.deepEqual(atual.body.map((i) => [i.produto.id, i.quantidade]), [[1, 1]]);
   });
 
+  test("produto inativo ou de artesão não aprovado não entra no carrinho", async () => {
+    for (const produtoId of [fora.inativo, fora.dePendente]) {
+      const r = await colocar([{ produtoId, quantidade: 1 }]);
+      assert.equal(r.status, 400, String(produtoId));
+      assert.equal(r.body.erro, "CORPO_INVALIDO");
+    }
+  });
+
   test("sem login: 401; artesão: 403", async () => {
     assert.equal((await request(app).get("/carrinho")).status, 401);
     assert.equal((await comToken(request(app).get("/carrinho"), tokenMaria)).status, 403);
@@ -126,6 +159,13 @@ describe("POST /carrinho/validar", () => {
       { produtoId: 8, nome: "Cinto de Vaqueiro em Couro Trançado", disponivel: 0, solicitado: 1 },
       { produtoId: 999999, nome: "Produto 999999", disponivel: 0, solicitado: 1 },
     ]);
+  });
+
+  test("produto fora da vitrine aparece como indisponível, mesmo com estoque no banco", async () => {
+    const r = await request(app)
+      .post("/carrinho/validar")
+      .send({ itens: [{ produtoId: fora.inativo, quantidade: 1 }, { produtoId: fora.dePendente, quantidade: 1 }] });
+    assert.deepEqual(r.body.map((p) => [p.produtoId, p.disponivel]), [[fora.inativo, 0], [fora.dePendente, 0]]);
   });
 
   test("lista vazia ou malformada: 400", async () => {
