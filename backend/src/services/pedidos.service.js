@@ -74,3 +74,32 @@ export async function buscarPorCodigo(codigo, usuario) {
   if (!participa(pedido, usuario)) throw new ErroApi(403, "SEM_PERMISSAO", "Este pedido é de outra pessoa.");
   return paraPedido(pedido);
 }
+
+/** Transições permitidas (iguais a obterProximosStatus do frontend). */
+export const PROXIMOS_STATUS = {
+  pendente: ["confirmado", "cancelado"],
+  confirmado: ["em_producao", "cancelado"],
+  em_producao: ["enviado", "cancelado"],
+  enviado: ["entregue"],
+  entregue: [],
+  cancelado: [],
+};
+
+/** Só o artesão com item no pedido muda o status. Cancelar devolve o estoque. */
+export async function atualizarStatus(codigo, novoStatus, usuario) {
+  const pedido = await pedidosRepository.buscarPorCodigo(codigo);
+  if (!pedido) throw naoEncontrado(`Pedido ${codigo} não encontrado.`);
+  if (usuario.perfil !== "artesao" || !participa(pedido, usuario)) {
+    throw new ErroApi(403, "SEM_PERMISSAO", "Só o artesão com item neste pedido pode mudar o status.");
+  }
+  const transicaoInvalida = (atual) =>
+    new ErroApi(400, "CORPO_INVALIDO", `O pedido está "${atual}" e não pode passar para "${novoStatus}".`);
+
+  if (!PROXIMOS_STATUS[pedido.status].includes(novoStatus)) throw transicaoInvalida(pedido.status);
+  if (!(await pedidosRepository.trocarStatus(pedido, pedido.status, novoStatus))) {
+    // Outra requisição mudou o status no meio do caminho (ex.: dois cancelamentos juntos).
+    const atual = (await pedidosRepository.buscarPorCodigo(codigo)).status;
+    throw transicaoInvalida(atual);
+  }
+  return paraPedido(await pedidosRepository.buscarPorCodigo(codigo));
+}

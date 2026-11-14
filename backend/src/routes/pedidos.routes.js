@@ -4,6 +4,7 @@
 //   POST /pedidos          (comprador) { enderecoEntrega, metodoPagamento, itens: [{ produtoId, quantidade }] } → 201 Pedido
 //   GET  /pedidos          (logado) → 200 Pedido[] — o escopo vem do perfil (comprador, artesão, admin)
 //   GET  /pedidos/:codigo  (comprador dono, artesão com item no pedido, admin) → 200 Pedido
+//   PATCH /pedidos/:codigo/status (artesão com item no pedido) { status } → 200 Pedido (cancelar devolve o estoque)
 // ============================================================================
 
 import { Router } from "express";
@@ -15,3 +16,4 @@ export const rotasPedidos = Router();
 rotasPedidos.post("/pedidos", autenticar, exigirPerfil("comprador"), pedidosController.criar);
 rotasPedidos.get("/pedidos", autenticar, pedidosController.listar);
 rotasPedidos.get("/pedidos/:codigo", autenticar, pedidosController.buscarPorCodigo);
+rotasPedidos.patch("/pedidos/:codigo/status", autenticar, exigirPerfil("artesao"), pedidosController.atualizarStatus);

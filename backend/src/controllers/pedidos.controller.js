@@ -27,3 +27,9 @@ export async function listar(req, res) {
 export async function buscarPorCodigo(req, res) {
   res.json(await pedidosService.buscarPorCodigo(String(req.params.codigo).slice(0, 20), req.usuario));
 }
+
+export async function atualizarStatus(req, res) {
+  const { status } = exigirCorpo(req.body);
+  if (typeof status !== "string") throw invalido("Informe o novo status.");
+  res.json(await pedidosService.atualizarStatus(String(req.params.codigo).slice(0, 20), status, req.usuario));
+}

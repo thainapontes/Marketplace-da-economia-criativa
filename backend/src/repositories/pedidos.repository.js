@@ -34,3 +34,33 @@ export function listar({ compradorId, artesaoId } = {}) {
   };
   return prisma.pedido.findMany({ where, include: INCLUDE_PEDIDO, orderBy: [{ criado_em: "desc" }, { id: "desc" }] });
 }
+
+/**
+ * Muda o status de `de` para `para` numa transação, e, se for cancelamento,
+ * devolve ao estoque as unidades de cada item.
+ *
+ * A troca é condicional (WHERE status = de), a mesma ideia do checkout seguro:
+ * se dois pedidos de cancelamento chegarem juntos, só UM encontra o status
+ * antigo e devolve o estoque; o outro altera 0 linhas e recebe `false`.
+ * Os produtos são atualizados em ordem de id, a mesma ordem do checkout, para
+ * não criar ciclo de espera (deadlock) com compras simultâneas.
+ */
+export function trocarStatus(pedido, de, para) {
+  return prisma.$transaction(async (tx) => {
+    const { count } = await tx.pedido.updateMany({
+      where: { id: pedido.id, status: de },
+      data: { status: para, atualizado_em: new Date() },
+    });
+    if (count === 0) return false;
+    if (para === "cancelado") {
+      const itens = [...pedido.item_pedido].sort((a, b) => (a.produto_id < b.produto_id ? -1 : 1));
+      for (const item of itens) {
+        await tx.produto.update({
+          where: { id: item.produto_id },
+          data: { estoque: { increment: item.quantidade }, atualizado_em: new Date() },
+        });
+      }
+    }
+    return true;
+  });
+}
