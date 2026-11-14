@@ -5,5 +5,7 @@
 import * as filtrosService from "../services/filtros.service.js";
 
 export async function listarOpcoes(_req, res) {
-  res.json(await filtrosService.listarOpcoes());
+  const { opcoes, doCache } = await filtrosService.listarOpcoes();
+  res.set("X-Cache", doCache ? "HIT" : "MISS");
+  res.json(opcoes);
 }

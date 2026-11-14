@@ -27,7 +27,10 @@ export async function listar(req, res) {
     categoria: filtro(req.query.categoria, "categoria"),
     artesaoId,
   };
-  res.json(await produtosService.listar(filtros, req.usuario));
+  const { produtos, doCache } = await produtosService.listar(filtros, req.usuario);
+  // Mostra na aba Network do navegador se a resposta veio da memória (HIT) ou do banco (MISS).
+  res.set("X-Cache", doCache ? "HIT" : "MISS");
+  res.json(produtos);
 }
 
 export async function buscarPorId(req, res) {

@@ -11,6 +11,7 @@ import { ProdutoInexistente } from "../repositories/pedido.repository.js";
 import * as pedidosRepository from "../repositories/pedidos.repository.js";
 import * as produtosRepository from "../repositories/produtos.repository.js";
 import * as carrinhoRepository from "../repositories/carrinho.repository.js";
+import { esquecerVitrine } from "./produtos.service.js";
 
 const naoEncontrado = (mensagem) => new ErroApi(404, "NAO_ENCONTRADO", mensagem);
 
@@ -39,6 +40,9 @@ export async function criar({ enderecoEntrega, metodoPagamento, itens }, comprad
     if (erro instanceof ProdutoInexistente) throw naoEncontrado(erro.message);
     throw erro; // ESTOQUE_INSUFICIENTE (409) e o resto seguem para o tratador central
   }
+
+  // O estoque mudou: a vitrine em cache precisa ser lida de novo.
+  esquecerVitrine();
 
   // O que foi comprado sai do carrinho salvo. Não faz parte da transação do
   // pedido: se falhar, o pedido continua válido e o carrinho só fica com sobra.
@@ -101,5 +105,6 @@ export async function atualizarStatus(codigo, novoStatus, usuario) {
     const atual = (await pedidosRepository.buscarPorCodigo(codigo)).status;
     throw transicaoInvalida(atual);
   }
+  if (novoStatus === "cancelado") esquecerVitrine(); // o estoque voltou
   return paraPedido(await pedidosRepository.buscarPorCodigo(codigo));
 }
