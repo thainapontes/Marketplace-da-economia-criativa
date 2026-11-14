@@ -2,8 +2,8 @@
 // Autenticação por JWT e controle de acesso por perfil (docs/api.md, seção 1).
 //
 //   gerarToken(usuario)          → string assinada, válida por JWT_VALIDADE
-//   autenticar                   → middleware: exige "Authorization: Bearer <token>"
-//                                  e preenche req.usuario
+//   autenticar                   → middleware: exige o token (cabeçalho Bearer ou
+//                                  cookie de sessão) e preenche req.usuario
 //   autenticarSeHouver           → middleware: req.usuario se houver token válido,
 //                                  senão null (rotas públicas)
 //   exigirPerfil("artesao", ...) → middleware: 403 se o perfil não estiver na lista
@@ -68,7 +68,7 @@ function naoAutenticado(mensagem = "Faça login para continuar.") {
  * O perfil também vem do banco, não do token.
  */
 export async function autenticar(req, _res, next) {
-  req.usuario = await usuarioDoToken(req.headers.authorization);
+  req.usuario = await usuarioDoToken(tokenDaRequisicao(req));
   next();
 }
 
@@ -80,9 +80,10 @@ export async function autenticar(req, _res, next) {
  */
 export async function autenticarSeHouver(req, _res, next) {
   req.usuario = null;
-  if (req.headers.authorization) {
+  const token = tokenDaRequisicao(req);
+  if (token !== undefined) {
     try {
-      req.usuario = await usuarioDoToken(req.headers.authorization);
+      req.usuario = await usuarioDoToken(token);
     } catch (erro) {
       if (!(erro instanceof ErroApi)) throw erro; // falha de banco não vira "visitante"
     }
@@ -90,9 +91,25 @@ export async function autenticarSeHouver(req, _res, next) {
   next();
 }
 
-async function usuarioDoToken(cabecalho = "") {
-  const [tipo, token] = cabecalho.split(" ");
-  if (tipo !== "Bearer" || !token) throw naoAutenticado();
+/**
+ * De onde vem o token, nesta ordem:
+ *   1. cabeçalho "Authorization: Bearer <token>" (testes, curl, módulo de IA);
+ *   2. cookie de sessão (navegador).
+ * Se o cabeçalho existir, ele manda, mesmo que esteja malformado (vira 401):
+ * assim um cliente nunca é autenticado "por engano" pelo cookie de outra sessão.
+ * undefined = a requisição não trouxe credencial nenhuma.
+ */
+function tokenDaRequisicao(req) {
+  const cabecalho = req.headers.authorization;
+  if (cabecalho !== undefined) {
+    const [tipo, token] = cabecalho.split(" ");
+    return tipo === "Bearer" && token ? token : null;
+  }
+  return req.cookies?.[COOKIE_SESSAO];
+}
+
+async function usuarioDoToken(token) {
+  if (!token) throw naoAutenticado();
 
   let conteudo;
   try {
