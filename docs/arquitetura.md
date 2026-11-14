@@ -1,4 +1,7 @@
-# Arquitetura — Origem (Avaliação 1)
+# Arquitetura — Origem
+
+> As seções 1 a 5 descrevem o frontend da Avaliação 1. A seção 6 descreve o backend da U2.
+> A versão completa (front, API, worker, IA e banco) vem no fechamento da U2 (`docs/plano-u2.md`, etapa L).
 
 ## 1. Visão geral
 
@@ -93,3 +96,30 @@ Avaliação 2 fique isolada nesses dois hooks.
   nunca escreve `useState` + `useEffect` + `fetch` manualmente; ele consome um hook de domínio.
 - **`types/` é o contrato único** entre mocks, services, hooks e componentes — qualquer
   divergência de forma dos dados quebra a compilação (`strict: true`, sem `any`).
+
+## 6. Backend (U2)
+
+Node/Express + PostgreSQL, em `backend/`, organizado nas camadas pedidas na disciplina de Web:
+
+```
+requisição → routes → (middlewares de autenticação) → controller → service → repository → banco
+                                                                                 │
+                                                       Prisma (ORM) ─────────────┤
+                                                       driver pg (SQL puro) ─────┘
+```
+
+| Camada | Responsabilidade | Exemplo |
+|---|---|---|
+| `routes/` | liga método + URL ao controller e aos middlewares | `GET /produtos` → `produtosController.listar` |
+| `controllers/` | lê e valida a requisição, monta a resposta HTTP | filtro `"Todas"` é ignorado; `artesaoId` precisa ser número |
+| `services/` | regras de negócio | só produto ativo de artesão aprovado aparece na vitrine |
+| `repositories/` | acesso ao banco | `prisma.produto.findMany(...)` |
+| `utils/mapeadores/` | registro do banco → objeto da API | `BigInt`/`Decimal` → `number`, nomes em camelCase |
+
+**Prisma e SQL puro convivem de propósito.** O Prisma faz as consultas comuns. O SQL puro (driver `pg`)
+fica onde o Prisma não alcança: o checkout seguro (`UPDATE` condicional atômico e ordem anti-deadlock)
+e a fila (`FOR UPDATE SKIP LOCKED`), que são a entrega do FCCPD U1, e a busca sem acento (`unaccent`).
+O schema do banco continua sendo o SQL da equipe; o `prisma/schema.prisma` é gerado dele.
+
+Detalhes e o passo a passo para criar uma rota: [`backend/README.md`](../backend/README.md).
+
