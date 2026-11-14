@@ -14,7 +14,9 @@ import { app } from "../../src/app.js";
 import { pool } from "../../src/config/database.js";
 import { config } from "../../src/config/env.js";
 
-const DOMINIO_TESTE = "@teste.origem.invalid";
+// Domínio próprio deste arquivo: os arquivos de teste rodam em paralelo, e cada um
+// apaga no fim só os usuários que ele criou.
+const DOMINIO_TESTE = "@auth.teste.origem.invalid";
 const rodada = Date.now();
 let contador = 0;
 const emailNovo = () => `u${rodada}-${++contador}${DOMINIO_TESTE}`;
