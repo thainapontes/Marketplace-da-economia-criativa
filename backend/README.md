@@ -40,7 +40,7 @@ src/
 ├── repositories/  *.repository.js   acesso ao banco (Prisma ou SQL)
 ├── middlewares/
 │   ├── erros.js              ErroApi + tratadorDeErros (formato { erro, mensagem })
-│   └── autenticacao.js       gerarToken, autenticar, autenticarSeHouver, exigirPerfil
+│   └── autenticacao.js       gerarToken, cookie de sessão, autenticar, autenticarSeHouver, exigirPerfil
 └── utils/
     ├── validacao.js          validação de entrada (texto, e-mail, id de URL) → 400
     └── mapeadores/           registro do banco → objeto da API (Usuario, Produto, Artesao, Avaliacao)
@@ -83,7 +83,9 @@ testes/
    valida com `utils/validacao.js`, chama o service e responde (`res.status(201).json(...)`).
    No Express 5, erro lançado dentro de função `async` chega ao tratador sem `try/catch`.
 4. **routes** (`src/routes/<recurso>.routes.js`): `router.post("/x", autenticar, exigirPerfil("artesao"), controller.criar)`.
-   O usuário logado fica em `req.usuario` (`id`, `nome`, `email`, `perfil`...).
+   O usuário logado fica em `req.usuario` (`id`, `nome`, `email`, `perfil`...). O token pode vir pelo
+   cabeçalho `Authorization: Bearer` ou pelo cookie `origem_sessao` (navegador); nos testes, o
+   cabeçalho é o mais simples.
    Rota pública que mostra algo a mais ao dono: `autenticarSeHouver` (sem token ou com token
    vencido, `req.usuario` fica `null` e a rota segue como visitante).
 5. Registre o router em `src/app.js`, **antes** de `rotaNaoEncontrada`.

@@ -32,8 +32,8 @@ Para o frontend saber o que já pode trocar. As letras são as etapas de [`docs/
 | Estrutura, erros, CORS | 1.0 | ✅ pronto |
 | `/auth/*`, `GET /usuarios/:id` | 1.1 | ✅ pronto |
 | `/filtros`, `GET /produtos`, `/artesoes`, `GET` avaliações | 1.2 | ✅ pronto |
-| Prisma e pastas routes/controllers/services/repositories (sem mudar as rotas) | A | ⏳ |
-| Sessão também por cookie httpOnly, `POST /auth/sair` | B | ⏳ |
+| Prisma e pastas routes/controllers/services/repositories (sem mudar as rotas) | A | ✅ pronto |
+| Sessão também por cookie httpOnly, `POST /auth/sair` | B | ✅ pronto |
 | `/carrinho` (salvo no banco), `/pedidos` | D | ⏳ (`POST /pedidos` ainda é a versão da U1) |
 | `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores`, cache | C | ⏳ |
 | `POST` avaliações, `/admin/*`, recomendações passando pela API | E | ⏳ |
@@ -44,7 +44,17 @@ Para o frontend saber o que já pode trocar. As letras são as etapas de [`docs/
 ## 1. Autenticação e perfis
 
 - **JWT** (HS256) devolvido por `/auth/login` e `/auth/registrar`, válido por **8 h**.
-- Enviado em toda rota protegida: `Authorization: Bearer <token>`.
+- **Duas formas de enviar o token**, aceitas em toda rota protegida:
+  1. **cookie `origem_sessao`** — login e cadastro já o gravam (`HttpOnly`, `SameSite=Lax`, `Path=/`,
+     `Secure` em produção, mesma validade do token). É o caminho do **navegador**: com
+     `fetch(..., { credentials: "include" })` ele é guardado e enviado sozinho, e o JavaScript da
+     página não consegue lê-lo (um script injetado não rouba a sessão). `SameSite=Lax` impede que
+     outro site use o cookie em `POST`/`PUT`/`DELETE` (proteção contra CSRF).
+  2. **cabeçalho `Authorization: Bearer <token>`** — testes, curl e o módulo de IA. Se o cabeçalho
+     vier, ele manda sobre o cookie; malformado = **401** (não cai para o cookie).
+- `POST /auth/sair` apaga o cookie (**204**). O JWT não é revogado no servidor: vence sozinho em 8 h.
+- CORS com credenciais, só para as origens de `CORS_ORIGEM`. Em produção, o frontend chama a API pelo
+  próprio domínio (rewrite `/api` da Vercel), então o cookie é do mesmo site e `SameSite=Lax` basta.
 - Payload do token: `{ "sub": <usuarioId>, "perfil": "comprador" | "artesao" | "administrador" }`.
   O backend **não confia no `perfil` do token**: a cada requisição autenticada ele carrega o usuário do
   banco. Por isso um token de conta apagada deixa de valer na hora, e mudar o perfil de alguém vale já.
@@ -155,6 +165,7 @@ Em `itens[].produto.preco` vai o **preço pago** (`item_pedido.preco_unitario`),
 | `POST /auth/registrar` | público | `{ nome, email, senha, perfil, regiao? }` | **201** `{ token, usuario }` | `usuariosService.registrar` |
 | `POST /auth/login` | público | `{ email, senha }` | **200** `{ token, usuario }` | `usuariosService.login` |
 | `GET /auth/eu` | logado | — | **200** `Usuario` | (novo) restaura a sessão ao recarregar a página |
+| `POST /auth/sair` | público | — | **204** (apaga o cookie de sessão) | (novo) logout |
 | `GET /usuarios/:id` | dono ou admin | — | **200** `Usuario` | `usuariosService.buscarPorId` |
 
 Regras de `POST /auth/registrar`:
@@ -290,12 +301,15 @@ Campos que não são uma coluna direta:
 
 ## 10. Uso no frontend (Fase 2)
 
-1. `client.ts` ganha um `apiFetch(caminho, opções)` que monta a URL com `NEXT_PUBLIC_API_URL`, envia o
-   token guardado pelo `useAuth` e transforma respostas de erro em `ApiError(mensagem)`.
-   As telas continuam tratando `ApiError` como hoje.
+1. `client.ts` ganha um `apiFetch(caminho, opções)` que monta a URL com `NEXT_PUBLIC_API_URL`, usa
+   `credentials: "include"` (o navegador envia o cookie de sessão sozinho) e transforma respostas de
+   erro em `ApiError(mensagem)`. As telas continuam tratando `ApiError` como hoje.
+   **Não guarde o `token` no navegador** (localStorage etc.): o cookie `httpOnly` já é a sessão.
+   O `useAuth` guarda só o `usuario`; ao recarregar a página, chama `GET /auth/eu` para confirmar a
+   sessão, e no logout chama `POST /auth/sair`.
 2. Cada `*.service.ts` mantém **as mesmas assinaturas** e troca o corpo para chamar a rota
    correspondente (coluna "Substitui"). Exceções que mudam a assinatura:
    `pedidosService.listarPorCliente/listarPorArtesao/listarTodos` viram chamadas a `GET /pedidos`
    (o argumento passa a ser ignorado); `usuariosService.login/registrar` passam a receber
-   `{ token, usuario }` e o `useAuth` guarda o token.
+   `{ token, usuario }` e usam só o `usuario` (o token já foi para o cookie).
 3. Quando o último service for migrado, `frontend/src/mocks/` e `delay()` podem ser apagados.
