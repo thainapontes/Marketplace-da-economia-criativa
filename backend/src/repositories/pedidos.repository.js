@@ -18,3 +18,19 @@ const INCLUDE_PEDIDO = {
 export function buscarPorId(id) {
   return prisma.pedido.findUnique({ where: { id: BigInt(id) }, include: INCLUDE_PEDIDO });
 }
+
+export function buscarPorCodigo(codigo) {
+  return prisma.pedido.findUnique({ where: { codigo }, include: INCLUDE_PEDIDO });
+}
+
+/**
+ * Pedidos mais recentes primeiro, filtrados por quem pede:
+ *   compradorId → os pedidos dele; artesaoId → os que têm item dele; nenhum → todos.
+ */
+export function listar({ compradorId, artesaoId } = {}) {
+  const where = {
+    ...(compradorId && { comprador_id: BigInt(compradorId) }),
+    ...(artesaoId && { item_pedido: { some: { artesao_id: BigInt(artesaoId) } } }),
+  };
+  return prisma.pedido.findMany({ where, include: INCLUDE_PEDIDO, orderBy: [{ criado_em: "desc" }, { id: "desc" }] });
+}

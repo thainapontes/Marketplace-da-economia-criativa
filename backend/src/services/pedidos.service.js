@@ -48,3 +48,29 @@ export async function criar({ enderecoEntrega, metodoPagamento, itens }, comprad
 
   return paraPedido(await pedidosRepository.buscarPorId(resultado.pedidoId));
 }
+
+/**
+ * O escopo vem do perfil do login (o frontend não escolhe):
+ * comprador → os dele; artesão → os que têm item dele; administrador → todos.
+ */
+export async function listar(usuario) {
+  const filtro =
+    usuario.perfil === "comprador" ? { compradorId: usuario.id }
+    : usuario.perfil === "artesao" ? { artesaoId: usuario.id }
+    : {};
+  return (await pedidosRepository.listar(filtro)).map(paraPedido);
+}
+
+/** Quem pode ver (ou mexer em) um pedido: o comprador dono, artesão com item nele e o admin. */
+function participa(pedido, usuario) {
+  if (usuario.perfil === "administrador") return true;
+  if (usuario.perfil === "comprador") return Number(pedido.comprador_id) === Number(usuario.id);
+  return pedido.item_pedido.some((item) => Number(item.artesao_id) === Number(usuario.id));
+}
+
+export async function buscarPorCodigo(codigo, usuario) {
+  const pedido = await pedidosRepository.buscarPorCodigo(codigo);
+  if (!pedido) throw naoEncontrado(`Pedido ${codigo} não encontrado.`);
+  if (!participa(pedido, usuario)) throw new ErroApi(403, "SEM_PERMISSAO", "Este pedido é de outra pessoa.");
+  return paraPedido(pedido);
+}

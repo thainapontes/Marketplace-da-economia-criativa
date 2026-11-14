@@ -19,3 +19,11 @@ export async function criar(req, res) {
   };
   res.status(201).json(await pedidosService.criar(dados, req.usuario));
 }
+
+export async function listar(req, res) {
+  res.json(await pedidosService.listar(req.usuario));
+}
+
+export async function buscarPorCodigo(req, res) {
+  res.json(await pedidosService.buscarPorCodigo(String(req.params.codigo).slice(0, 20), req.usuario));
+}
