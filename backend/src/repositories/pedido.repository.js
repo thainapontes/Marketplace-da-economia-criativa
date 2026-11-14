@@ -7,7 +7,7 @@
 // visível, sem ruído de código repetido no meio.
 // ============================================================================
 
-import { enfileirar } from "./fila.js";
+import { enfileirar } from "./fila.repository.js";
 
 /** Não havia estoque suficiente no momento da compra. Vira HTTP 409 Conflict. */
 export class EstoqueInsuficiente extends Error {

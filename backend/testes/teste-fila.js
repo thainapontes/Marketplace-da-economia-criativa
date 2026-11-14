@@ -25,7 +25,7 @@
 
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { pool } from "../src/db.js";
+import { pool } from "../src/config/database.js";
 
 const API = process.env.API ?? "http://localhost:3333";
 const achado = process.argv.find((a) => a.startsWith("--jobs="));

@@ -3,7 +3,7 @@
 //
 // Todas as variáveis têm valor padrão para desenvolvimento e estão
 // documentadas em .env.example. Nenhum outro arquivo lê process.env direto
-// (exceção: db.js e o worker, que vêm da U1 e continuam como estão).
+// (exceção: config/database.js e o worker, que vêm da U1 e continuam como estão).
 // ============================================================================
 
 // Só para desenvolvimento e testes. Nunca use em produção.
@@ -11,6 +11,9 @@ const SEGREDO_DESENVOLVIMENTO = "origem-dev-segredo-nao-usar-em-producao";
 
 export const config = {
   porta: Number(process.env.PORT ?? 3333),
+
+  // Endereço do PostgreSQL (o mesmo para o Prisma e para o driver pg).
+  databaseUrl: process.env.DATABASE_URL ?? "postgres://origem:origem@localhost:5434/origem",
 
   // Flag de ambiente do FCCPD U1: roda POST /pedidos no modo ingênuo.
   checkoutIngenuo: process.env.NAIVE_CHECKOUT === "true",

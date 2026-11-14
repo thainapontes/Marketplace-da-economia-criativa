@@ -67,11 +67,11 @@ foram sobrescritas por outras que liam o valor antigo. Não é só "vendeu demai
 
 | Assunto | Arquivo |
 |---|---|
-| UPDATE condicional atômico + ordenação anti-deadlock | `backend/src/checkout-seguro.js` |
-| A versão com race condition (mantida de propósito) | `backend/src/checkout-ingenuo.js` |
-| Transação e pool de conexões | `backend/src/db.js` |
-| Fila: enfileirar, reservar, ack, backoff, dead-letter, órfãos | `backend/src/fila.js` |
+| UPDATE condicional atômico + ordenação anti-deadlock | `backend/src/services/checkout-seguro.service.js` |
+| A versão com race condition (mantida de propósito) | `backend/src/services/checkout-ingenuo.service.js` |
+| Transação e pool de conexões | `backend/src/config/database.js` |
+| Fila: enfileirar, reservar, ack, backoff, dead-letter, órfãos | `backend/src/repositories/fila.repository.js` |
 | Worker (processo separado) | `backend/src/worker.js` |
-| Tarefas idempotentes (notificação e imagem) | `backend/src/tarefas.js` |
+| Tarefas idempotentes (notificação e imagem) | `backend/src/services/tarefas.service.js` |
 | Estrutura da fila no banco | `backend/sql/03_fila.sql` |
 | Scripts destes testes | `backend/testes/` |

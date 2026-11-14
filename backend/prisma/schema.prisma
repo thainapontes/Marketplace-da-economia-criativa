@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model artesao {
+  usuario_id      BigInt            @id
+  nome_atelie     String            @db.VarChar(150)
+  descricao       String?
+  regiao_id       Int
+  criado_em       DateTime          @default(now()) @db.Timestamp(6)
+  foto_url        String?           @db.VarChar(300)
+  capa_url        String?           @db.VarChar(300)
+  ano_inicio      Int?              @db.SmallInt
+  aprovado        Boolean           @default(false)
+  regiao          regiao            @relation(fields: [regiao_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario         usuario           @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  artesao_tecnica artesao_tecnica[]
+  item_pedido     item_pedido[]
+  produto         produto[]
+}
+
+model artesao_tecnica {
+  artesao_id BigInt
+  tecnica_id Int
+  artesao    artesao @relation(fields: [artesao_id], references: [usuario_id], onDelete: Cascade, onUpdate: NoAction)
+  tecnica    tecnica @relation(fields: [tecnica_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([artesao_id, tecnica_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model avaliacao_produto {
+  id         BigInt   @id @default(autoincrement())
+  produto_id BigInt
+  usuario_id BigInt
+  nota       Int      @db.SmallInt
+  comentario String   @default("")
+  criado_em  DateTime @default(now()) @db.Timestamp(6)
+  produto    produto  @relation(fields: [produto_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuario    usuario  @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([produto_id, usuario_id])
+  @@index([produto_id, criado_em(sort: Desc)], map: "idx_avaliacao_produto")
+}
+
+model carrinho {
+  id            BigInt          @id @default(autoincrement())
+  usuario_id    BigInt          @unique
+  atualizado_em DateTime        @default(now()) @db.Timestamp(6)
+  usuario       usuario         @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  item_carrinho item_carrinho[]
+}
+
+model categoria {
+  id      Int       @id @default(autoincrement())
+  nome    String    @unique @db.VarChar(100)
+  produto produto[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model classificacao_produto {
+  id         BigInt               @id @default(autoincrement())
+  produto_id BigInt
+  classe     String               @db.VarChar(80)
+  confianca  Decimal              @db.Decimal(4, 3)
+  status     status_classificacao @default(aprovado)
+  criado_em  DateTime             @default(now()) @db.Timestamp(6)
+  produto    produto              @relation(fields: [produto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model evento_assincrono {
+  id                 BigInt        @id @default(autoincrement())
+  tipo               String        @db.VarChar(50)
+  payload            Json
+  status             status_evento @default(pendente)
+  criado_em          DateTime      @default(now()) @db.Timestamp(6)
+  processado_em      DateTime?     @db.Timestamp(6)
+  tentativas         Int           @default(0)
+  max_tentativas     Int           @default(4)
+  disponivel_em      DateTime      @default(now()) @db.Timestamp(6)
+  chave_idempotencia String?       @db.VarChar(160)
+  ultimo_erro        String?
+  atualizado_em      DateTime      @default(now()) @db.Timestamp(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model item_carrinho {
+  id             BigInt   @id @default(autoincrement())
+  carrinho_id    BigInt
+  produto_id     BigInt
+  quantidade     Int
+  preco_unitario Decimal  @db.Decimal(10, 2)
+  carrinho       carrinho @relation(fields: [carrinho_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  produto        produto  @relation(fields: [produto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([carrinho_id, produto_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model item_pedido {
+  id             BigInt  @id @default(autoincrement())
+  pedido_id      BigInt
+  produto_id     BigInt
+  artesao_id     BigInt
+  quantidade     Int
+  preco_unitario Decimal @db.Decimal(10, 2)
+  subtotal       Decimal @db.Decimal(10, 2)
+  artesao        artesao @relation(fields: [artesao_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  pedido         pedido  @relation(fields: [pedido_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  produto        produto @relation(fields: [produto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([artesao_id], map: "idx_item_pedido_artesao")
+}
+
+model notificacao {
+  id                 BigInt   @id @default(autoincrement())
+  usuario_id         BigInt
+  tipo               String   @db.VarChar(50)
+  mensagem           String   @db.VarChar(300)
+  lida               Boolean  @default(false)
+  criado_em          DateTime @default(now()) @db.Timestamp(6)
+  chave_idempotencia String?  @db.VarChar(160)
+  usuario            usuario  @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model pagamento {
+  id            BigInt           @id @default(autoincrement())
+  pedido_id     BigInt           @unique
+  metodo        String           @default("simulado") @db.VarChar(30)
+  status        status_pagamento
+  valor         Decimal          @db.Decimal(10, 2)
+  processado_em DateTime         @default(now()) @db.Timestamp(6)
+  pedido        pedido           @relation(fields: [pedido_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pedido {
+  id               BigInt        @id @default(autoincrement())
+  comprador_id     BigInt
+  status           status_pedido @default(pendente)
+  endereco_entrega String        @db.VarChar(255)
+  valor_total      Decimal       @db.Decimal(10, 2)
+  criado_em        DateTime      @default(now()) @db.Timestamp(6)
+  atualizado_em    DateTime      @default(now()) @db.Timestamp(6)
+  codigo           String        @unique @default(dbgenerated("('PE-'::text || nextval('pedido_codigo_seq'::regclass))")) @db.VarChar(20)
+  frete            Decimal       @default(0) @db.Decimal(10, 2)
+  previsao_entrega DateTime?     @db.Date
+  item_pedido      item_pedido[]
+  pagamento        pagamento?
+  usuario          usuario       @relation(fields: [comprador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([comprador_id, status], map: "idx_pedido_comprador")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model produto {
+  id                    BigInt                  @id @default(autoincrement())
+  artesao_id            BigInt
+  categoria_id          Int
+  tecnica_id            Int
+  regiao_id             Int
+  nome                  String                  @db.VarChar(150)
+  descricao             String?
+  preco                 Decimal                 @db.Decimal(10, 2)
+  estoque               Int                     @default(0)
+  status                status_produto          @default(ativo)
+  criado_em             DateTime                @default(now()) @db.Timestamp(6)
+  atualizado_em         DateTime                @default(now()) @db.Timestamp(6)
+  preco_original        Decimal?                @db.Decimal(10, 2)
+  avaliacao_produto     avaliacao_produto[]
+  classificacao_produto classificacao_produto[]
+  item_carrinho         item_carrinho[]
+  item_pedido           item_pedido[]
+  artesao               artesao                 @relation(fields: [artesao_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  categoria             categoria               @relation(fields: [categoria_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  regiao                regiao                  @relation(fields: [regiao_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tecnica               tecnica                 @relation(fields: [tecnica_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  produto_imagem        produto_imagem[]
+  recomendacao_log      recomendacao_log[]
+
+  @@index([tecnica_id, regiao_id, categoria_id], map: "idx_produto_filtros")
+  @@index([nome(ops: raw("gin_trgm_ops"))], map: "idx_produto_nome_trgm", type: Gin)
+  @@index([preco], map: "idx_produto_preco")
+}
+
+model produto_imagem {
+  id                  BigInt        @id @default(autoincrement())
+  produto_id          BigInt
+  chave_armazenamento String        @db.VarChar(300)
+  content_type        String        @db.VarChar(50)
+  hash_sha256         String?       @db.Char(64)
+  status              status_imagem @default(disponivel)
+  verificado_em       DateTime?     @db.Timestamp(6)
+  ordem               Int           @default(0) @db.SmallInt
+  produto             produto       @relation(fields: [produto_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([produto_id, hash_sha256])
+}
+
+model recomendacao_log {
+  id         BigInt   @id @default(autoincrement())
+  usuario_id BigInt?
+  produto_id BigInt
+  criterio   String   @db.VarChar(30)
+  score      Decimal? @db.Decimal(5, 4)
+  criado_em  DateTime @default(now()) @db.Timestamp(6)
+  produto    produto  @relation(fields: [produto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario    usuario? @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model regiao {
+  id      Int       @id @default(autoincrement())
+  nome    String    @db.VarChar(100)
+  polo    String    @db.VarChar(100)
+  artesao artesao[]
+  produto produto[]
+
+  @@unique([nome, polo])
+}
+
+model tecnica {
+  id              Int               @id @default(autoincrement())
+  nome            String            @unique @db.VarChar(100)
+  artesao_tecnica artesao_tecnica[]
+  produto         produto[]
+}
+
+model usuario {
+  id                BigInt              @id @default(autoincrement())
+  nome              String              @db.VarChar(150)
+  email             String              @unique @db.VarChar(180)
+  senha_hash        String              @db.VarChar(255)
+  perfil            perfil_usuario      @default(comprador)
+  criado_em         DateTime            @default(now()) @db.Timestamp(6)
+  atualizado_em     DateTime            @default(now()) @db.Timestamp(6)
+  avatar_url        String?             @db.VarChar(300)
+  artesao           artesao?
+  avaliacao_produto avaliacao_produto[]
+  carrinho          carrinho?
+  notificacao       notificacao[]
+  pedido            pedido[]
+  recomendacao_log  recomendacao_log[]
+}
+
+enum perfil_usuario {
+  comprador
+  artesao
+  administrador
+}
+
+enum status_classificacao {
+  aprovado
+  revisao
+}
+
+enum status_evento {
+  pendente
+  processando
+  processado
+  falha
+  morto
+}
+
+enum status_imagem {
+  disponivel
+  indisponivel
+  processando
+}
+
+enum status_pagamento {
+  aprovado
+  recusado
+}
+
+enum status_pedido {
+  pendente
+  confirmado
+  em_producao
+  enviado
+  entregue
+  cancelado
+}
+
+enum status_produto {
+  ativo
+  inativo
+}

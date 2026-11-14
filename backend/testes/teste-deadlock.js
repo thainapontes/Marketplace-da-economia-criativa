@@ -12,7 +12,7 @@
 // [produto 2, produto 3] e a outra metade leva [produto 3, produto 2] — os
 // MESMOS produtos em ordem INVERSA. É a receita exata do deadlock.
 //
-// POR QUE ELE NÃO ACONTECE: checkout-seguro.js ordena os itens por produto_id
+// POR QUE ELE NÃO ACONTECE: checkout-seguro.service.js ordena os itens por produto_id
 // antes de dar os UPDATEs. Todas as transações passam a pegar as travas na
 // MESMA ordem, então o ciclo de espera é impossível e a espera vira uma fila
 // reta — que sempre anda.

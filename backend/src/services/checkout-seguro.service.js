@@ -14,8 +14,8 @@
 //     COMMIT;
 // ============================================================================
 
-import { comTransacao } from "./db.js";
-import { explicarFalhaDeEstoque, gravarPedido } from "./pedido.js";
+import { comTransacao } from "../config/database.js";
+import { explicarFalhaDeEstoque, gravarPedido } from "../repositories/pedido.repository.js";
 
 export async function criarPedidoSeguro({ compradorId, enderecoEntrega, metodoPagamento, itens }) {
   // ------------------------------------------------------------------------

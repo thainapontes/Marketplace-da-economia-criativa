@@ -11,8 +11,8 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import { app } from "../../src/app.js";
-import { pool } from "../../src/db.js";
-import { config } from "../../src/config.js";
+import { pool } from "../../src/config/database.js";
+import { config } from "../../src/config/env.js";
 
 const DOMINIO_TESTE = "@teste.origem.invalid";
 const rodada = Date.now();

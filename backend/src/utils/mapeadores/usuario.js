@@ -5,12 +5,9 @@
 // nunca entra aqui: mesmo que uma consulta o traga, ele não é copiado.
 // ============================================================================
 
-/** Colunas que as consultas devem selecionar para usar paraUsuario(). */
-export const COLUNAS_USUARIO = "id, nome, email, perfil, avatar_url, criado_em";
-
 export function paraUsuario(linha) {
   const usuario = {
-    id: Number(linha.id), // BIGSERIAL chega como string no Node
+    id: Number(linha.id), // BIGSERIAL chega como BigInt (Prisma) ou string (pg)
     nome: linha.nome,
     email: linha.email,
     perfil: linha.perfil,

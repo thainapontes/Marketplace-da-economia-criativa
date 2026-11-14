@@ -5,6 +5,10 @@
 **Repositório:** <https://github.com/thainapontes/Marketplace-da-economia-criativa>
 **Branch:** `main` (o trabalho foi desenvolvido na branch `feat/fccpd-concorrencia`, já incorporada à `main`)
 
+> **Nota da U2 (14/11/2026):** os arquivos do backend foram reorganizados nas pastas
+> `config/`, `routes/`, `controllers/`, `services/` e `repositories/` pedidas na disciplina de Web.
+> O código desta entrega não mudou; só os caminhos citados abaixo foram atualizados.
+
 ---
 
 ## Sumário
@@ -46,7 +50,7 @@ chama **check-then-act** (conferir e agir em dois passos separados) e é a causa
 
 A versão "ingênua" exigida para a comparação, portanto, **não foi inventada para o
 trabalho** — é o código real do projeto, reescrito em SQL e preservado em
-[`backend/src/checkout-ingenuo.js`](backend/src/checkout-ingenuo.js).
+[`backend/src/services/checkout-ingenuo.service.js`](backend/src/services/checkout-ingenuo.service.js).
 
 Na direção oposta, a **seção 7 do [`docs/Origem_DDL.md`](docs/Origem_DDL.md)** já descrevia a
 solução correta e o DDL já trazia `CHECK (estoque >= 0)`. A modelagem da equipe estava certa;
@@ -77,7 +81,7 @@ venceu em t5. A escrita de Ana foi apagada pela de Bruno — fenômeno chamado *
 
 ### 2.1 Técnica escolhida: UPDATE condicional atômico dentro de transação
 
-Implementação em [`backend/src/checkout-seguro.js`](backend/src/checkout-seguro.js):
+Implementação em [`backend/src/services/checkout-seguro.service.js`](backend/src/services/checkout-seguro.service.js):
 
 ```sql
 BEGIN;
@@ -144,7 +148,7 @@ Medição: 40 compras simultâneas com carrinhos em ordem inversa → **0 deadlo
 
 | Alternativa | Por que não |
 |---|---|
-| **Só a transação** (sem `WHERE` condicional) | No isolamento padrão do PostgreSQL (`READ COMMITTED`), duas transações conseguem **ler o mesmo valor antes de qualquer uma escrever**. Transação garante *tudo-ou-nada* e durabilidade, **não exclusão mútua**. A prova está no repositório: `checkout-ingenuo.js` está dentro de uma transação **e erra** |
+| **Só a transação** (sem `WHERE` condicional) | No isolamento padrão do PostgreSQL (`READ COMMITTED`), duas transações conseguem **ler o mesmo valor antes de qualquer uma escrever**. Transação garante *tudo-ou-nada* e durabilidade, **não exclusão mútua**. A prova está no repositório: `checkout-ingenuo.service.js` está dentro de uma transação **e erra** |
 | **Só o `CHECK (estoque >= 0)`** | No *lost update* o estoque nunca fica negativo — no teste ficou **1**, não −40. O `CHECK` não teria reclamado de nada e o overselling aconteceria igual. Ele protege a **integridade do número**; só o UPDATE condicional protege a **regra de negócio**. As duas camadas se somam: defesa em profundidade |
 | **Mutex na aplicação** | Um **mutex** (*mutual exclusion*) é uma trava que vive na memória do processo. Ela funciona entre *threads* (que compartilham memória) e **falha entre processos** (cada um tem a sua própria trava e não sabe da outra). Com duas réplicas da API, Ana pega o mutex da réplica 1 e Bruno o da réplica 2: ninguém espera e o bug volta inteiro — e volta de forma traiçoeira, porque passa nos testes locais, com um processo só, e quebra em produção. Não é hipotético aqui: o deploy é na **Vercel**, que sobe e derruba instâncias automaticamente, e o modelo padrão de escala do Node é rodar vários processos, um por núcleo |
 | **`SELECT ... FOR UPDATE`** (travar e depois decidir) | Funciona e é correto, mas exige dois comandos onde um resolve, e mantém a trava por mais tempo sem ganho algum |
@@ -171,7 +175,7 @@ distintos, possivelmente em máquinas distintas.
 | **Progresso** | O lock é por **linha**, não global: compras de produtos diferentes não esperam umas pelas outras. Um mutex de aplicação travaria o checkout inteiro |
 | **Espera limitada** | O banco atende a fila de espera do lock e reavalia a condição ao acordar; nenhuma transação é preterida indefinidamente |
 | **Mutex / lock como "passe único de entrada"** | O passe existe — mas mora **no banco**, que é o recurso compartilhado, e não na memória de um processo (seção 2.4) |
-| **`unlock()` no `finally` / `with`** | `cliente.release()` no `finally` de `comTransacao()` (`src/db.js`), e o `ROLLBACK` no `catch`: exceção nenhuma pode deixar conexão ou lock presos |
+| **`unlock()` no `finally` / `with`** | `cliente.release()` no `finally` de `comTransacao()` (`src/config/database.js`), e o `ROLLBACK` no `catch`: exceção nenhuma pode deixar conexão ou lock presos |
 | **Semáforo contador** | Ver abaixo — o estoque **é** um semáforo contador |
 | **Monitor** (lock + variável de condição) | A transação cumpre esse papel: o banco junta, numa estrutura só, a trava e a reavaliação da condição (`AND estoque >= :qtd`) ao acordar. Não é um monitor literal — é o mesmo empacotamento de responsabilidades |
 | **Deadlock** | Seção 2.3: provocado de propósito no teste e eliminado por ordem única de aquisição — a mesma estratégia que a dinâmica do Jantar dos Filósofos pede para combinar na Rodada 2 |
@@ -205,7 +209,7 @@ Três diferenças em relação ao semáforo da aula, que valem ser ditas em voz 
 3. **Um `signal/V` também existe**, embora não implementado nesta entrega: o cancelamento de
    pedido, que devolveria as unidades ao contador.
 
-Há ainda um segundo semáforo contador no sistema, esse explícito: `PG_POOL_MAX` (`src/db.js`),
+Há ainda um segundo semáforo contador no sistema, esse explícito: `PG_POOL_MAX` (`src/config/database.js`),
 o tamanho do pool de conexões. Ele é o "número de vagas" para conversar com o banco — com
 `max = 10`, no máximo 10 checkouts falam com o banco ao mesmo tempo e os demais esperam a vez
 dentro da aplicação. É a mesma ideia das 3 impressoras do slide.
@@ -303,13 +307,13 @@ stateDiagram-v2
 | Garantia | Como é obtida | Onde está |
 |---|---|---|
 | **Persistência** | o job é uma linha do banco; sobrevive à queda do worker, da API e da máquina | `sql/03_fila.sql` |
-| **Atomicidade com o pedido** (*transactional outbox*) | o `INSERT` na fila usa a **mesma conexão e a mesma transação** do checkout. Se o pedido der `ROLLBACK`, o job some junto | `src/pedido.js`, `src/fila.js` → `enfileirar()` |
+| **Atomicidade com o pedido** (*transactional outbox*) | o `INSERT` na fila usa a **mesma conexão e a mesma transação** do checkout. Se o pedido der `ROLLBACK`, o job some junto | `src/repositories/pedido.repository.js`, `src/repositories/fila.repository.js` → `enfileirar()` |
 | **At-least-once** | o ack só acontece **depois** do sucesso da tarefa. Se o worker cair no meio, ninguém deu ack e o job volta | `src/worker.js` → `processar()` |
-| **Idempotência** | `chave_idempotencia` UNIQUE + `ON CONFLICT DO NOTHING`, tanto ao enfileirar quanto ao gravar o efeito. A chave descreve o **efeito** (`notificar-comprador:42`), não a tentativa | `src/fila.js`, `src/tarefas.js` |
-| **Retry com backoff exponencial** | ao falhar, `disponivel_em = now() + intervalo`, dobrando a cada tentativa (2s, 4s, 8s, 16s) | `src/fila.js` → `falhar()` |
-| **Dead-letter** | esgotadas as tentativas, `status = 'morto'` com `ultimo_erro` preenchido, inspecionável em `GET /fila` | `src/fila.js` → `falhar()` |
-| **Recuperação de órfãos** | jobs presos em `processando` além do tempo limite voltam a `pendente` (*visibility timeout*) | `src/fila.js` → `recuperarOrfaos()` |
-| **Sem entrega dupla simultânea** | `SELECT … FOR UPDATE SKIP LOCKED`: cada worker pula as linhas já travadas por outro em vez de esperar por elas | `src/fila.js` → `reservar()` |
+| **Idempotência** | `chave_idempotencia` UNIQUE + `ON CONFLICT DO NOTHING`, tanto ao enfileirar quanto ao gravar o efeito. A chave descreve o **efeito** (`notificar-comprador:42`), não a tentativa | `src/repositories/fila.repository.js`, `src/services/tarefas.service.js` |
+| **Retry com backoff exponencial** | ao falhar, `disponivel_em = now() + intervalo`, dobrando a cada tentativa (2s, 4s, 8s, 16s) | `src/repositories/fila.repository.js` → `falhar()` |
+| **Dead-letter** | esgotadas as tentativas, `status = 'morto'` com `ultimo_erro` preenchido, inspecionável em `GET /fila` | `src/repositories/fila.repository.js` → `falhar()` |
+| **Recuperação de órfãos** | jobs presos em `processando` além do tempo limite voltam a `pendente` (*visibility timeout*) | `src/repositories/fila.repository.js` → `recuperarOrfaos()` |
+| **Sem entrega dupla simultânea** | `SELECT … FOR UPDATE SKIP LOCKED`: cada worker pula as linhas já travadas por outro em vez de esperar por elas | `src/repositories/fila.repository.js` → `reservar()` |
 | **Desligamento gracioso** | `SIGINT`/`SIGTERM` terminam o job em andamento antes de sair, em vez de abandoná-lo | `src/worker.js` |
 
 **Por que at-least-once, e não exactly-once:** garantir "exatamente uma vez" entre dois
@@ -332,7 +336,7 @@ projeto, e o que a tarefa faz é um trabalho de CPU equivalente em formato (perc
 com uma função de hash). O critério avaliado é que o trabalho pesado saia do caminho da
 resposta HTTP; trocar essa função por `sharp.resize()` não mudaria nada na fila. A decisão
 está declarada em comentário no próprio
-[`backend/src/tarefas.js`](backend/src/tarefas.js), não omitida.
+[`backend/src/services/tarefas.service.js`](backend/src/services/tarefas.service.js), não omitida.
 
 ### 3.6 A fila é o problema do produtor-consumidor
 
@@ -348,7 +352,7 @@ semáforos em memória:
 
 | Produtor-consumidor da aula | Nesta entrega |
 |---|---|
-| Produtor (thread) | A API HTTP, no checkout (`src/pedido.js`) |
+| Produtor (thread) | A API HTTP, no checkout (`src/repositories/pedido.repository.js`) |
 | Consumidor (thread) | O worker, em **processo separado** (`src/worker.js`) |
 | `buffer` compartilhado em memória | A tabela `evento_assincrono` |
 | Semáforo `itens` — avisa que há o que consumir | *Polling*: o worker pergunta ao banco a cada 500 ms |
@@ -594,19 +598,19 @@ backend/
 │   ├── 01b_extensoes_u2.sql     [U2] colunas/tabelas novas p/ o backend real (aditivo)
 │   ├── 02_seed.sql              dados sintéticos (catálogo dos mocks; [U2] antes: 3 produtos)
 │   └── 03_fila.sql              [Etapa 2] a fila: tentativas, backoff, idempotência
-├── src/
-│   ├── db.js                    pool + comTransacao (BEGIN/COMMIT/ROLLBACK)
-│   ├── pedido.js                comum às duas versões + enfileiramento
-│   ├── checkout-seguro.js       ✅ UPDATE condicional + ordenação anti-deadlock
-│   ├── checkout-ingenuo.js      🔴 a race condition, preservada para comparação
-│   ├── fila.js                  enfileirar · reservar · ack · backoff · órfãos
-│   ├── tarefas.js               notificar_pedido e processar_imagem (idempotentes)
+├── src/                         [U2] reorganizado nas pastas pedidas na Web (mesmo código)
+│   ├── config/database.js       pool + comTransacao (BEGIN/COMMIT/ROLLBACK)
+│   ├── repositories/pedido.repository.js   comum às duas versões + enfileiramento
+│   ├── services/checkout-seguro.service.js ✅ UPDATE condicional + ordenação anti-deadlock
+│   ├── services/checkout-ingenuo.service.js 🔴 a race condition, preservada para comparação
+│   ├── repositories/fila.repository.js     enfileirar · reservar · ack · backoff · órfãos
+│   ├── services/tarefas.service.js         notificar_pedido e processar_imagem (idempotentes)
 │   ├── worker.js                o processo consumidor (npm run worker)
 │   ├── server.js                API HTTP ([U2] só abre a porta)
 │   ├── app.js                   [U2] monta CORS, rotas e tratamento de erros
-│   ├── config.js                [U2] variáveis de ambiente num lugar só
+│   ├── config/env.js            [U2] variáveis de ambiente num lugar só
 │   ├── middlewares/erros.js     [U2] formato único de erro + códigos 23514/40P01
-│   └── rotas/laboratorio.js     [U2] as rotas desta entrega, movidas sem mudança
+│   └── routes/laboratorio.routes.js [U2] as rotas desta entrega, movidas sem mudança
 └── testes/                      os scripts que geraram as evidências
     └── api/                     [U2] testes automatizados da API (npm test)
 

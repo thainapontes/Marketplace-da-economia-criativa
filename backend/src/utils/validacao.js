@@ -3,7 +3,7 @@
 // ErroApi 400 CORPO_INVALIDO com uma mensagem que pode ir direto para a tela.
 // ============================================================================
 
-import { ErroApi } from "./middlewares/erros.js";
+import { ErroApi } from "../middlewares/erros.js";
 
 export function invalido(mensagem) {
   return new ErroApi(400, "CORPO_INVALIDO", mensagem);

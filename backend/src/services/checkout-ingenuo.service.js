@@ -19,8 +19,8 @@
 // falha no meio do caminho, não contra concorrência.
 // ============================================================================
 
-import { comTransacao } from "./db.js";
-import { EstoqueInsuficiente, ProdutoInexistente, gravarPedido } from "./pedido.js";
+import { comTransacao } from "../config/database.js";
+import { EstoqueInsuficiente, ProdutoInexistente, gravarPedido } from "../repositories/pedido.repository.js";
 
 export async function criarPedidoIngenuo({ compradorId, enderecoEntrega, metodoPagamento, itens }) {
   // Sem ordenação por id — de propósito. Além da race condition de estoque,
