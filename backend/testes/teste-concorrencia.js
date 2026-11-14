@@ -18,7 +18,12 @@
 // versão ingênua: sem simultaneidade não existe race condition.
 // ============================================================================
 
+import { cabecalhosDoComprador } from "./sessao-comprador.js";
+
 const API = process.env.API ?? "http://localhost:3333";
+
+// Preenchido uma vez, antes da rajada (login do comprador; ver sessao-comprador.js).
+let cabecalhos = { "Content-Type": "application/json" };
 
 // Lê --chave=valor da linha de comando.
 function argumento(nome, padrao) {
@@ -43,9 +48,9 @@ async function comprar() {
   try {
     const resposta = await fetch(`${API}${ROTA}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: cabecalhos,
       body: JSON.stringify({
-        compradorId: 1,
+        compradorId: 1, // usado só pela rota /pedidos-naive (laboratório)
         enderecoEntrega: "Rua da Aurora, 100 - Recife/PE",
         metodoPagamento: "pix",
         itens: [{ produtoId: PRODUTO_ID, quantidade: 1 }],
@@ -78,6 +83,8 @@ async function principal() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ estoque: ESTOQUE_INICIAL }),
   });
+
+  cabecalhos = await cabecalhosDoComprador();
 
   const inicio = Date.now();
   // AQUI está a simultaneidade: as N promessas são criadas de uma vez...

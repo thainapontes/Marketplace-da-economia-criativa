@@ -22,7 +22,12 @@
 // das transações com o código 40P01; a API traduz isso em HTTP 409.)
 // ============================================================================
 
+import { cabecalhosDoComprador } from "./sessao-comprador.js";
+
 const API = process.env.API ?? "http://localhost:3333";
+
+// Preenchido uma vez, antes da rajada (login do comprador; ver sessao-comprador.js).
+let cabecalhos = { "Content-Type": "application/json" };
 const achado = process.argv.find((a) => a.startsWith("--requisicoes="));
 const REQUISICOES = Number(achado ? achado.split("=")[1] : 40);
 const ESTOQUE = REQUISICOES; // estoque sobrando de propósito: aqui o alvo é o
@@ -33,9 +38,9 @@ const linha = (c = "─") => console.log(c.repeat(78));
 async function comprar(itens) {
   const resposta = await fetch(`${API}/pedidos`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: cabecalhos,
     body: JSON.stringify({
-      compradorId: 1,
+      compradorId: 1, // usado só pela rota /pedidos-naive (laboratório)
       enderecoEntrega: "Rua da Aurora, 100 - Recife/PE",
       metodoPagamento: "pix",
       itens,
@@ -57,6 +62,7 @@ async function principal() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ estoque: ESTOQUE }),
   });
+  cabecalhos = await cabecalhosDoComprador();
 
   const promessas = Array.from({ length: REQUISICOES }, (_, i) =>
     comprar(
