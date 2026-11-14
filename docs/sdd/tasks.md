@@ -1,13 +1,14 @@
 <!--
-NOTA DE SUPOSIÇÃO: o enunciado da atividade diz que o planejamento SDD tem "quatro arquivos em
-Markdown", mas nomeia explicitamente apenas requisitos.md, design.md e product.md — o texto do
-quarto item aparenta estar cortado no arquivo fonte. Este tasks.md foi criado como suposição
-razoável, por fechar o ciclo requisitos -> design -> tasks do Spec-Driven Development.
+NOTA DE SUPOSIÇÃO: o enunciado da atividade (Orientações.md) diz que o planejamento SDD tem
+"quatro arquivos em Markdown", mas nomeia explicitamente apenas requirements.md, design.md e
+product.md — o texto do quarto item aparenta estar cortado no arquivo fonte. Este tasks.md foi
+criado como suposição razoável (fecha o ciclo requirements → design → tasks do Spec-Driven
+Development). Confirme com o professor se o nome/conteúdo esperado é este antes da entrega final.
 -->
 
 # tasks.md — Módulo de Recomendação de Produtos (Origem)
 
-Lista de tarefas de implementação derivadas de `requisitos.md` e `design.md`, rastreadas aos
+Lista de tarefas de implementação derivadas de `requirements.md` e `design.md`, rastreadas aos
 requisitos que atendem. Segue a ordem de dependência técnica (dados → estratégias → API →
 integração → observabilidade).
 
@@ -17,7 +18,8 @@ integração → observabilidade).
       `pedido`, `recomendacao_log`) está criado no ambiente de desenvolvimento.
       _Requisitos: RF-01, RF-03, RF-04, RF-06, RF-07_
 - [ ] 1.2 Implementar o repositório de leitura de produtos elegíveis (ativos, com estoque),
-      com índices já previstos no DDL (`idx_produto_filtros`).
+      com uma única consulta de candidatos por requisição e os índices já previstos no DDL
+      (`idx_produto_filtros`).
       _Requisitos: RF-04, RNF-05_
 - [ ] 1.3 Implementar o repositório de escrita em `recomendacao_log` (inserção em lote por
       resposta, `usuario_id` opcional).
@@ -26,8 +28,7 @@ integração → observabilidade).
 ## 2. Estratégias de recomendação
 
 - [ ] 2.1 Implementar `EstrategiaAtributo` (baseline): pontuação por mesmo artesão (peso 3),
-      mesma técnica (peso 2), mesma região (peso 1), ordenação decrescente e desempate por
-      média de avaliações, quantidade vendida e data de cadastro.
+      mesma técnica (peso 2), mesma região (peso 1), ordenação decrescente.
       _Requisitos: RF-01_
 - [ ] 2.2 Implementar `EstrategiaPopularidade` (fallback): ranking por quantidade vendida
       (`item_pedido`) e/ou nota média, usado quando o baseline não preenche o `limite`.
@@ -44,22 +45,23 @@ integração → observabilidade).
 
 ## 3. API REST
 
-- [ ] 3.1 Implementar `GET /produtos/:id/recomendados` (parâmetros `id`, `limite` entre 1 e 20;
-      padrão do `limite` = 4; erro 404 se o produto não existir; erro 400 se `limite` for não
-      numérico ou fora do intervalo).
+- [ ] 3.1 Implementar `GET /produtos/:id/recomendados` (parâmetros `id`, `limite`; padrão do
+      `limite` = 4; erro 404 se o produto não existir; erro 400 se `limite` não for inteiro
+      entre 1 e 20; corpo JSON com `produtoReferenciaId` e `recomendacoes`).
       _Requisitos: RF-02, RF-05_
-- [ ] 3.2 Implementar `GET /usuarios/:id/recomendados` (padrão do `limite` = 8), com verificação
-      de autorização por proprietário: 401 sem autenticação válida e 403 quando o `id` não for o
-      do usuário autenticado.
-      _Requisitos: RF-06, RF-05_
+- [ ] 3.2 Implementar `GET /usuarios/:id/recomendados`, com padrão de `limite` = 8 e
+      verificação de autorização por proprietário (401 sem autenticação; 403 se o `id` não for do
+      usuário autenticado).
+      _Requisitos: RF-06_
 - [ ] 3.3 Compor, no controller, a ordem de chamada das estratégias (histórico → atributo →
       popularidade) e acionar o registrador de log de forma *best-effort* (RF-03) sem bloquear a
       resposta em caso de falha na escrita do log.
       _Requisitos: RF-01, RF-03, RF-06, RF-07_
-- [ ] 3.4 Adicionar tratamento de timeout (500 ms por requisição) e de erro interno retornando
-      `503`, sem expor stack trace.
+- [ ] 3.4 Adicionar tratamento de erro interno e de timeout de 2 segundos retornando `503`, sem
+      expor stack trace.
       _Requisitos: RF-08, RNF-02_
-- [ ] 3.5 Medir e documentar o tempo de resposta (p95) no ambiente de avaliação.
+- [ ] 3.5 Medir e documentar o tempo de resposta (p95 de até 300 ms) no ambiente de avaliação,
+      com catálogo sintético de 10.000 produtos.
       _Requisitos: RNF-01_
 
 ## 4. Integração com o frontend
@@ -84,9 +86,8 @@ integração → observabilidade).
       (aciona popularidade), usuário sem histórico (aciona popularidade), usuário com histórico
       (aciona recomendação personalizada).
       _Requisitos: RF-01, RF-06, RF-07_
-- [ ] 5.3 Validar cada critério de aceitação EARS de `requisitos.md` manualmente ou com teste
-      automatizado, registrando o resultado conforme a seção 13 (Verificação dos Requisitos) do
-      *Documento de Requisitos de Software*.
+- [ ] 5.3 Validar cada critério de aceitação EARS de `requirements.md` manualmente ou com teste
+      automatizado, registrando o resultado.
       _Requisitos: todos_
 
 ## 6. Documentação

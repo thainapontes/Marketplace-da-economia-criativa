@@ -1,5 +1,8 @@
 # Product — Módulo de Recomendação de Produtos (Origem / EP8 / HU15)
 
+> **Versão de trabalho.** A versão oficial do SDD (a entregue em 17/09/2026) está em
+> [`docs/sdd/`](../sdd/). Este arquivo fica só como histórico.
+
 ## Contexto do projeto principal
 
 O **Origem** é um marketplace web que conecta artesãos e produtores criativos de Pernambuco a

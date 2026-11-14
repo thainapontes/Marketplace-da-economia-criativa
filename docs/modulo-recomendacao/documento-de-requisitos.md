@@ -1,5 +1,8 @@
 # Documento de Requisitos de Software
 
+> **Versão de trabalho.** A versão oficial do SDD (a entregue em 17/09/2026) está em
+> [`docs/sdd/`](../sdd/). Este arquivo fica só como histórico.
+
 ## Módulo de Recomendação de Produtos — Origem (EP8 / HU15)
 
 **Projeto principal:** Origem — Marketplace da Economia Criativa de Pernambuco

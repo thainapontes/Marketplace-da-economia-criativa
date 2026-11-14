@@ -1,8 +1,5 @@
 # design.md — Módulo de Recomendação de Produtos (Origem)
 
-> Requisitos referenciados neste documento: ver `requisitos.md` (mesmos identificadores RF/RNF
-> do *Documento de Requisitos de Software*).
-
 ## 1. Diagrama de componentes
 
 ```
@@ -70,8 +67,6 @@ tabela nova é necessária:
   fonte dos atributos usados em RF-01 e do filtro de elegibilidade (RF-04).
 - `item_pedido` (produto_id, artesao_id, quantidade, subtotal) — fonte de popularidade (RF-07) e
   de histórico de compra do usuário (via `pedido.comprador_id`, RF-06).
-- `avaliacao` (produto_id, nota) — sinal complementar de popularidade (RF-07) e critério de
-  desempate entre produtos com a mesma pontuação (RF-01).
 - `recomendacao_log` (id, usuario_id, produto_id, criterio, score, criado_em) — destino do
   registro de auditoria (RF-03, RNF-04, RNF-07). O campo `criterio` armazena um dos valores:
   `"mesmo-artesao"`, `"mesma-tecnica"`, `"mesma-regiao"`, `"popularidade"` ou
@@ -86,9 +81,7 @@ produto 1───∞ recomendacao_log ∞───1 usuario (opcional, usuario_
 
 A estratégia **principal (baseline)** é a já validada na Avaliação 1: similaridade de atributos
 por pesos fixos — mesmo artesão (3), mesma técnica (2), mesma região (1) — somados por produto
-candidato, ordenados por pontuação decrescente (RF-01). Em caso de empate, o desempate segue a
-ordem: maior média de avaliações, maior quantidade vendida e, por último, produto mais recente.
-É determinística, explicável (o
+candidato, ordenados por pontuação decrescente (RF-01). É determinística, explicável (o
 `criterio` de maior peso pode ser reportado) e não depende de volume de dados, servindo também
 como estratégia de *cold start* para produtos e usuários novos.
 
@@ -106,16 +99,16 @@ um modelo de aprendizado de máquina fica fora desta entrega.
 | Campo | Tipo | Obrigatório | Descrição |
 |---|---|---|---|
 | `id` (path) | inteiro | sim | Identificador do produto de referência |
-| `limite` (query) | inteiro entre 1 e 20 | não (padrão 4) | Quantidade máxima de itens retornados |
+| `limite` (query) | inteiro | não (padrão 4) | Quantidade máxima de itens retornados |
 
-**Resposta 200 (JSON):** objeto contendo `produtoReferenciaId` e a lista `recomendacoes`, na ordem
-de recomendação; cada item traz `id`, `nome`, `criterio` e `score` (mesmo formato de produto já
-usado no restante da API do Origem, acrescido dos campos de recomendação).
+**Resposta 200 (JSON):** objeto com `produtoReferenciaId` (inteiro) e `recomendacoes` (lista, na
+ordem de recomendação). Cada item de `recomendacoes` traz os campos do `Produto` (mesmo formato já
+usado no restante da API do Origem) mais `criterio` (texto) e `score` (número).
 
-**Erros:**
+**Erros** (corpo JSON `{ "erro": "<mensagem>" }`):
 - `404` — produto de referência não existe.
-- `400` — `limite` fora do intervalo permitido (1–20).
-- `503` — módulo de recomendação indisponível (o frontend trata como RF-08, sem propagar erro
+- `400` — `limite` não é um inteiro entre 1 e 20.
+- `503` — falha interna ou timeout de 2 segundos (o frontend trata como RF-08, sem propagar erro
   para o usuário).
 
 ### `GET /usuarios/:id/recomendados` (personalizada, RF-06)
@@ -123,17 +116,17 @@ usado no restante da API do Origem, acrescido dos campos de recomendação).
 | Campo | Tipo | Obrigatório | Descrição |
 |---|---|---|---|
 | `id` (path) | inteiro | sim | Identificador do usuário autenticado |
-| `limite` (query) | inteiro entre 1 e 20 | não (padrão 8) | Quantidade máxima de itens retornados |
+| `limite` (query) | inteiro | não (padrão 8) | Quantidade máxima de itens retornados |
 
-**Resposta 200 (JSON):** objeto contendo `usuarioId` e a lista `recomendacoes`, no mesmo formato da
-rota anterior, com `criterio` igual a `historico-compra` ou `popularidade`. Requer o mesmo
-mecanismo de autenticação já usado pelo restante do Origem.
+**Resposta 200 (JSON):** objeto com `usuarioId` (inteiro) e `recomendacoes` (lista, no mesmo
+formato da rota por produto). Requer o mesmo mecanismo de autenticação já usado pelo restante do
+Origem (o usuário só pode consultar suas próprias recomendações).
 
-**Erros:**
-- `400` — `limite` fora do intervalo permitido (1–20).
-- `401` — requisição sem autenticação válida.
-- `403` — o `id` solicitado não corresponde ao usuário autenticado.
-- `503` — módulo de recomendação indisponível (tratado como RF-08 pelo frontend).
+**Erros** (corpo JSON `{ "erro": "<mensagem>" }`):
+- `401` — requisição sem autenticação.
+- `403` — `id` diferente do usuário autenticado.
+- `400` — `limite` não é um inteiro entre 1 e 20.
+- `503` — falha interna ou timeout de 2 segundos (RF-08).
 
 ## 6. Exemplo de requisição e resposta
 
@@ -163,11 +156,10 @@ GET /produtos/42/recomendados?limite=4
 ## 7. Tratamento de erros e estratégia de contingência
 
 - **Produto de referência inexistente:** `404` com mensagem legível (RF-02).
-- **`limite` inválido** (não numérico ou fora do intervalo 1–20)**:** `400` com mensagem legível
-  (RF-05). O tratamento *fail-soft* aplica-se apenas à escrita do log (ver abaixo), não à
-  validação de parâmetros — assim o contrato da rota é único e verificável.
-- **Falha interna do módulo (timeout de 500 ms por requisição, erro inesperado):** o controller responde
-  `503`; o frontend trata isso exatamente como "sem recomendações disponíveis" e oculta a seção
+- **`limite` inválido** (não inteiro ou fora de 1–20): `400`, sem executar nenhuma estratégia
+  (validação de entrada explícita, sem correção silenciosa do parâmetro).
+- **Falha interna do módulo (erro inesperado ou consulta que não conclui em 2 segundos):** o
+  controller responde `503`, sem expor stack trace; o frontend trata isso exatamente como "sem recomendações disponíveis" e oculta a seção
   (RF-08, RNF-02), sem exibir mensagem de erro bloqueante ao comprador.
 - **Falha ao gravar em `recomendacao_log`:** não deve impedir a resposta ao usuário — a escrita
   do log é *best-effort* (log de auditoria), enquanto a resposta da recomendação em si é o
@@ -180,8 +172,6 @@ GET /produtos/42/recomendados?limite=4
   recomendações (autorização por proprietário, mesmo padrão já usado em `pedidosService`).
 - **Privacidade:** nenhuma estratégia usa CPF, endereço ou dados de pagamento (RNF-03); o
   histórico de compra usado em RF-06 é reduzido a categoria/técnica dos produtos comprados.
-- **Rastreabilidade:** cada componente e rota deste design referencia os identificadores RF/RNF
-  definidos em `requisitos.md` e no *Documento de Requisitos de Software*.
 - **Observabilidade:** `recomendacao_log` permite consultas agregadas por `criterio` e por
   período (RNF-07), servindo de base para indicadores futuros no painel administrativo e para
   avaliar, em uma etapa posterior, a evolução da estratégia com dados comportamentais reais.
@@ -193,10 +183,6 @@ GET /produtos/42/recomendados?limite=4
 - **Linguagem/backend:** Node.js + Express, para manter consistência com o restante do backend
   do Origem planejado em `docs/arquitetura.md`.
 - **Banco de dados:** PostgreSQL, reaproveitando o schema de `docs/Origem_DDL.md` sem alterações.
-- **Bibliotecas:** `pg` (driver oficial do PostgreSQL para Node, evita ORM desnecessário em um
-  módulo somente leitura), `zod` para validação dos parâmetros de entrada (`id`, `limite`) e
-  `vitest` para os testes dos critérios EARS — todas já previstas na stack do projeto, sem
-  introduzir dependência de serviço externo de recomendação.
 - **Organização de pastas (backend):** `src/modules/recomendacao/{controller,service,estrategias,repository}.ts`,
   espelhando a separação em camadas já usada no frontend (`services/`, `hooks/`).
 - **Localização do módulo:** backend, como serviço interno — o frontend nunca acessa o banco

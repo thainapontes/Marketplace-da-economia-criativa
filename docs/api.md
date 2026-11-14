@@ -13,7 +13,7 @@ service por vez.
   Valores em reais como `number` (`285` ou `35.9`).
 - **Recomendações** não passam por aqui: são servidas pelo módulo de IA
   (`ia-recomendacao/`, porta 3001), com contrato próprio em
-  [`docs/modulo-recomendacao/design.md`](modulo-recomendacao/design.md).
+  [`docs/sdd/design.md`](sdd/design.md).
 - **Banco:** `backend/sql/01_schema.sql` (DDL da equipe) + `01b_extensoes_u2.sql`
   (colunas e tabelas acrescentadas para a U2) + `02_seed.sql` (o mesmo catálogo
   dos mocks, mesmos ids de produto). Mapeamento campo a campo na seção 9.
@@ -24,16 +24,20 @@ service por vez.
 
 ### Status da implementação
 
-Para a Fase 2 saber o que já pode trocar no frontend:
+Para o frontend saber o que já pode trocar. As letras são as etapas de [`docs/plano-u2.md`](plano-u2.md)
+(que substituiu a numeração 1.3–1.6 do plano antigo).
 
 | Grupo de rotas | Etapa | Status |
 |---|---|---|
 | Estrutura, erros, CORS | 1.0 | ✅ pronto |
 | `/auth/*`, `GET /usuarios/:id` | 1.1 | ✅ pronto |
 | `/filtros`, `GET /produtos`, `/artesoes`, `GET` avaliações | 1.2 | ✅ pronto |
-| `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores` | 1.3 | ⏳ |
-| `/carrinho/validar`, `/pedidos` | 1.4 | ⏳ (`POST /pedidos` ainda é a versão da U1) |
-| `POST` avaliações, `/admin/*` | 1.5 | ⏳ |
+| Prisma e pastas routes/controllers/services/repositories (sem mudar as rotas) | A | ⏳ |
+| Sessão também por cookie httpOnly, `POST /auth/sair` | B | ⏳ |
+| `/carrinho` (salvo no banco), `/pedidos` | D | ⏳ (`POST /pedidos` ainda é a versão da U1) |
+| `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores`, cache | C | ⏳ |
+| `POST` avaliações, `/admin/*`, recomendações passando pela API | E | ⏳ |
+| Swagger em `/docs` | F | ⏳ |
 
 ---
 
