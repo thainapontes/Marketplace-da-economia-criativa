@@ -37,3 +37,13 @@ export async function buscarPorId(id, usuario) {
   }
   return comEstatisticas(registro);
 }
+
+/**
+ * Indicadores do painel (HU13) do artesão logado:
+ * { totalVendido, totalPedidos, pedidosPendentes, produtosAtivos }.
+ * Só a parte dele nos pedidos: num pedido com itens de duas artesãs, cada uma
+ * vê o subtotal dos próprios itens. Pedidos cancelados não contam.
+ */
+export function indicadores(usuario) {
+  return artesoesRepository.indicadores(usuario.id);
+}

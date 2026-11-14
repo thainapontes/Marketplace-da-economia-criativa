@@ -40,3 +40,33 @@ export function totalDeVendas(artesaoId) {
     where: { status: { not: "cancelado" }, item_pedido: { some: { artesao_id: BigInt(artesaoId) } } },
   });
 }
+
+/**
+ * Indicadores do painel do artesão (HU13).
+ *
+ * Calculados aqui, e não pela view vw_indicadores_artesao do DDL, porque a
+ * view ainda (1) soma pedidos CANCELADOS no total vendido e (2) só conta como
+ * pendente o status 'pendente' — mas desde a U2 todo pedido nasce
+ * 'confirmado', então o número seria sempre 0. A correção da view está com a
+ * equipe de banco; quando entrar, esta função pode passar a lê-la.
+ */
+export async function indicadores(artesaoId) {
+  const artesao = BigInt(artesaoId);
+  const comItemDele = { item_pedido: { some: { artesao_id: artesao } } };
+  const [vendido, totalPedidos, pedidosPendentes, produtosAtivos] = await Promise.all([
+    prisma.item_pedido.aggregate({
+      _sum: { subtotal: true },
+      where: { artesao_id: artesao, pedido: { status: { not: "cancelado" } } },
+    }),
+    prisma.pedido.count({ where: { ...comItemDele, status: { not: "cancelado" } } }),
+    // "Pendente" para o artesão = ainda não começou a produzir (igual à tela do painel).
+    prisma.pedido.count({ where: { ...comItemDele, status: { in: ["pendente", "confirmado"] } } }),
+    prisma.produto.count({ where: { artesao_id: artesao, status: "ativo" } }),
+  ]);
+  return {
+    totalVendido: Number(vendido._sum.subtotal ?? 0),
+    totalPedidos,
+    pedidosPendentes,
+    produtosAtivos,
+  };
+}
