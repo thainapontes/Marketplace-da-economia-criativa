@@ -13,10 +13,9 @@
 // ============================================================================
 
 import jwt from "jsonwebtoken";
-import { pool } from "../config/database.js";
 import { config } from "../config/env.js";
 import { ErroApi } from "./erros.js";
-import { COLUNAS_USUARIO } from "../utils/mapeadores/usuario.js";
+import * as usuariosRepository from "../repositories/usuarios.repository.js";
 
 // Fixar o algoritmo impede o ataque clássico de trocar o "alg" do token
 // (por exemplo para "none") e fazê-lo passar sem assinatura válida.
@@ -81,9 +80,9 @@ async function usuarioDoToken(cabecalho = "") {
   const id = Number(conteudo.sub);
   if (!Number.isSafeInteger(id)) throw naoAutenticado("Sessão inválida. Faça login de novo.");
 
-  const resultado = await pool.query(`SELECT ${COLUNAS_USUARIO} FROM usuario WHERE id = $1`, [id]);
-  if (resultado.rowCount === 0) throw naoAutenticado("Esta conta não existe mais.");
-  return resultado.rows[0];
+  const usuario = await usuariosRepository.buscarPorId(id);
+  if (!usuario) throw naoAutenticado("Esta conta não existe mais.");
+  return usuario;
 }
 
 /** Deve vir DEPOIS de `autenticar` na lista de middlewares da rota. */
