@@ -77,11 +77,14 @@ export async function gravarPedido(cliente, { compradorId, enderecoEntrega, meto
   const frete = calcularFrete(subtotal);
   const total = arredondar(subtotal + frete);
 
+  // [U2 · etapa D] O pedido também grava o frete e a previsão de entrega (data
+  // do pedido + 8 dias), na mesma transação. O código público ("PE-5001") vem
+  // do DEFAULT da coluna.
   const pedido = await cliente.query(
-    `INSERT INTO pedido (comprador_id, status, endereco_entrega, valor_total)
-     VALUES ($1, 'confirmado', $2, $3)
-     RETURNING id, criado_em`,
-    [compradorId, enderecoEntrega, total],
+    `INSERT INTO pedido (comprador_id, status, endereco_entrega, valor_total, frete, previsao_entrega)
+     VALUES ($1, 'confirmado', $2, $3, $4, (now() + interval '8 days')::date)
+     RETURNING id, codigo, criado_em`,
+    [compradorId, enderecoEntrega, total, frete],
   );
 
   // BIGSERIAL (int8) chega no Node como string, para não perder precisão em
@@ -157,6 +160,7 @@ export async function gravarPedido(cliente, { compradorId, enderecoEntrega, meto
 
   return {
     pedidoId,
+    codigo: pedido.rows[0].codigo,
     criadoEm: pedido.rows[0].criado_em,
     subtotal,
     frete,

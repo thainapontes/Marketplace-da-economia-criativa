@@ -43,8 +43,12 @@ test("JSON malformado devolve 400 CORPO_INVALIDO", async () => {
   assertErro(r, 400, "CORPO_INVALIDO");
 });
 
-test("POST /pedidos com corpo incompleto devolve 400 sem tocar no banco", async () => {
-  assertErro(await request(app).post("/pedidos").send({ itens: [] }), 400, "CORPO_INVALIDO");
+// Etapa D: POST /pedidos passou a exigir login de comprador (antes, compradorId no corpo).
+test("POST /pedidos sem login devolve 401; com login e corpo incompleto, 400 sem tocar no banco", async () => {
+  assertErro(await request(app).post("/pedidos").send({ itens: [] }), 401, "NAO_AUTENTICADO");
+  const { token } = (await request(app).post("/auth/login").send({ email: "comprador@origem.com.br", senha: "origem123" })).body;
+  const r = await request(app).post("/pedidos").set("Authorization", `Bearer ${token}`).send({ itens: [] });
+  assertErro(r, 400, "CORPO_INVALIDO");
 });
 
 test("GET /produtos/:id mantém os campos que os testes do FCCPD leem", async () => {

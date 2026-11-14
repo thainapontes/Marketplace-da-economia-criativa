@@ -22,6 +22,7 @@ import { rotasFiltros } from "./routes/filtros.routes.js";
 import { rotasProdutos } from "./routes/produtos.routes.js";
 import { rotasArtesoes } from "./routes/artesoes.routes.js";
 import { rotasCarrinho } from "./routes/carrinho.routes.js";
+import { rotasPedidos } from "./routes/pedidos.routes.js";
 import { rotaNaoEncontrada, tratadorDeErros } from "./middlewares/erros.js";
 
 export const app = express();
@@ -42,6 +43,7 @@ app.use(rotasFiltros);
 app.use(rotasProdutos);
 app.use(rotasArtesoes);
 app.use(rotasCarrinho);
+app.use(rotasPedidos);
 
 app.use(rotaNaoEncontrada);
 app.use(tratadorDeErros);

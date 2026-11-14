@@ -42,11 +42,6 @@ export async function saude(_req, res) {
   }
 }
 
-export async function criarPedido(req, res) {
-  exigirPedidoValido(req.body);
-  res.status(201).json(await laboratorioService.criarPedido(req.body));
-}
-
 export async function criarPedidoSemProtecao(req, res) {
   exigirPedidoValido(req.body);
   res.status(201).json(await laboratorioService.criarPedidoSemProtecao(req.body));
