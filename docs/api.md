@@ -13,7 +13,7 @@ service por vez.
   Valores em reais como `number` (`285` ou `35.9`).
 - **Recomendações** não passam por aqui: são servidas pelo módulo de IA
   (`ia-recomendacao/`, porta 3001), com contrato próprio em
-  [`docs/modulo-recomendacao/design.md`](modulo-recomendacao/design.md).
+  [`docs/sdd/design.md`](sdd/design.md).
 - **Banco:** `backend/sql/01_schema.sql` (DDL da equipe) + `01b_extensoes_u2.sql`
   (colunas e tabelas acrescentadas para a U2) + `02_seed.sql` (o mesmo catálogo
   dos mocks, mesmos ids de produto). Mapeamento campo a campo na seção 9.

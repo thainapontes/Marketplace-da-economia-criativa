@@ -267,6 +267,9 @@ docs/       documentação do projeto
   Origem_DDL.md    modelagem do banco de dados (referência para a Avaliação 2)
   arquitetura.md   arquitetura em camadas do frontend e estratégia de integração futura
   api.md           contrato da API REST da U2 (rotas, erros, mapeamento banco ↔ API)
+  plano-u2.md      plano de implementação da U2 (etapas, commits e prazos)
+  sdd/             SDD oficial do módulo de recomendação (versão entregue em 17/09)
+  modulo-recomendacao/  versão de trabalho anterior do SDD (só histórico)
   uso-de-ia.md     registro do uso de IA generativa no desenvolvimento
 ```
 

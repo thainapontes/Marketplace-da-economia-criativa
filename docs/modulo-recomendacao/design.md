@@ -1,5 +1,8 @@
 # Design — Módulo de Recomendação de Produtos (Origem / EP8 / HU15)
 
+> **Versão de trabalho.** A versão oficial do SDD (a entregue em 17/09/2026) está em
+> [`docs/sdd/`](../sdd/). Este arquivo fica só como histórico.
+
 Identificadores (RF-XX / RNF-XX) idênticos aos de `documento-de-requisitos.md` e `requirements.md`.
 
 ## 1. Diagrama de componentes
