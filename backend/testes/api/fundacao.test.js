@@ -11,7 +11,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { app } from "../../src/app.js";
-import { pool } from "../../src/db.js";
+import { pool } from "../../src/config/database.js";
 import { tratadorDeErros, ErroApi } from "../../src/middlewares/erros.js";
 
 after(() => pool.end());

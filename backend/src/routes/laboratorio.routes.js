@@ -13,17 +13,17 @@
 //   POST /teste/fila           — enfileira N jobs de uma vez (teste de carga)
 //
 // Ao longo da Fase 1, as rotas do produto saem daqui. GET /produtos/:id saiu na
-// etapa 1.2 (rotas/catalogo.js, mesmos campos id/nome/preco/estoque/status que o
+// etapa 1.2 (hoje em routes/catalogo.routes.js, mesmos campos id/nome/preco/estoque/status que o
 // teste de concorrência lê); POST /pedidos sai na 1.4.
 // ============================================================================
 
 import { Router } from "express";
-import { pool, comTransacao } from "../db.js";
-import { config } from "../config.js";
-import { criarPedidoSeguro } from "../checkout-seguro.js";
-import { criarPedidoIngenuo } from "../checkout-ingenuo.js";
-import { ProdutoInexistente } from "../pedido.js";
-import { enfileirar, resumo } from "../fila.js";
+import { pool, comTransacao } from "../config/database.js";
+import { config } from "../config/env.js";
+import { criarPedidoSeguro } from "../services/checkout-seguro.service.js";
+import { criarPedidoIngenuo } from "../services/checkout-ingenuo.service.js";
+import { ProdutoInexistente } from "../repositories/pedido.repository.js";
+import { enfileirar, resumo } from "../repositories/fila.repository.js";
 import { ErroApi } from "../middlewares/erros.js";
 
 export const rotasLaboratorio = Router();

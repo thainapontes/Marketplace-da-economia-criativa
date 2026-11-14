@@ -8,7 +8,7 @@
 // abaixo — inclusive quando o erro acontece dentro de uma função async.
 // ============================================================================
 
-import { EstoqueInsuficiente, ProdutoInexistente } from "../pedido.js";
+import { EstoqueInsuficiente, ProdutoInexistente } from "../repositories/pedido.repository.js";
 
 /**
  * Erro "esperado", com status HTTP e código do contrato.

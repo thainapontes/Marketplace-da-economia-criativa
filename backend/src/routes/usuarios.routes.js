@@ -5,11 +5,11 @@
 // ============================================================================
 
 import { Router } from "express";
-import { pool } from "../db.js";
+import { pool } from "../config/database.js";
 import { ErroApi } from "../middlewares/erros.js";
 import { autenticar } from "../middlewares/autenticacao.js";
-import { COLUNAS_USUARIO, paraUsuario } from "../mapeadores/usuario.js";
-import { idDaUrl } from "../validacao.js";
+import { COLUNAS_USUARIO, paraUsuario } from "../utils/mapeadores/usuario.js";
+import { idDaUrl } from "../utils/validacao.js";
 
 export const rotasUsuarios = Router();
 

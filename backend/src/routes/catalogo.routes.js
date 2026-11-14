@@ -15,15 +15,15 @@
 // ============================================================================
 
 import { Router } from "express";
-import { pool } from "../db.js";
+import { pool } from "../config/database.js";
 import { ErroApi } from "../middlewares/erros.js";
 import { autenticarSeHouver } from "../middlewares/autenticacao.js";
 import {
   SELECT_PRODUTO, paraProduto,
   SELECT_ARTESAO, paraArtesao,
   SELECT_AVALIACAO, paraAvaliacao,
-} from "../mapeadores/catalogo.js";
-import { idDaUrl, invalido } from "../validacao.js";
+} from "../utils/mapeadores/catalogo.js";
+import { idDaUrl, invalido } from "../utils/validacao.js";
 
 export const rotasCatalogo = Router();
 

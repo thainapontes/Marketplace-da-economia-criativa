@@ -3,7 +3,7 @@
 //
 // Todas as variáveis têm valor padrão para desenvolvimento e estão
 // documentadas em .env.example. Nenhum outro arquivo lê process.env direto
-// (exceção: db.js e o worker, que vêm da U1 e continuam como estão).
+// (exceção: config/database.js e o worker, que vêm da U1 e continuam como estão).
 // ============================================================================
 
 // Só para desenvolvimento e testes. Nunca use em produção.

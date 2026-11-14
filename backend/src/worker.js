@@ -27,9 +27,9 @@
 // ============================================================================
 
 import os from "node:os";
-import { pool } from "./db.js";
-import { reservar, confirmar, falhar, recuperarOrfaos } from "./fila.js";
-import { executarTarefa } from "./tarefas.js";
+import { pool } from "./config/database.js";
+import { reservar, confirmar, falhar, recuperarOrfaos } from "./repositories/fila.repository.js";
+import { executarTarefa } from "./services/tarefas.service.js";
 
 // Quantos jobs pegar por rodada. Pegar em lote reduz idas ao banco; lote muito
 // grande faz um worker açambarcar trabalho que outro poderia estar fazendo.

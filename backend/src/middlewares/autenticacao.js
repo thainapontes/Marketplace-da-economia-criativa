@@ -13,10 +13,10 @@
 // ============================================================================
 
 import jwt from "jsonwebtoken";
-import { pool } from "../db.js";
-import { config } from "../config.js";
+import { pool } from "../config/database.js";
+import { config } from "../config/env.js";
 import { ErroApi } from "./erros.js";
-import { COLUNAS_USUARIO } from "../mapeadores/usuario.js";
+import { COLUNAS_USUARIO } from "../utils/mapeadores/usuario.js";
 
 // Fixar o algoritmo impede o ataque clássico de trocar o "alg" do token
 // (por exemplo para "none") e fazê-lo passar sem assinatura válida.

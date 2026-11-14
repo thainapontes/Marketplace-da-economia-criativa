@@ -8,11 +8,11 @@
 
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { pool, comTransacao } from "../db.js";
+import { pool, comTransacao } from "../config/database.js";
 import { ErroApi } from "../middlewares/erros.js";
 import { autenticar, gerarToken } from "../middlewares/autenticacao.js";
-import { COLUNAS_USUARIO, paraUsuario } from "../mapeadores/usuario.js";
-import { exigirCorpo, texto, email as validarEmail, invalido } from "../validacao.js";
+import { COLUNAS_USUARIO, paraUsuario } from "../utils/mapeadores/usuario.js";
+import { exigirCorpo, texto, email as validarEmail, invalido } from "../utils/validacao.js";
 
 export const rotasAuth = Router();
 

@@ -221,7 +221,7 @@ O carrinho **continua no navegador** (Zustand + localStorage), como na U1. As ta
 | `PATCH /pedidos/:codigo/status` | artesão com item no pedido | `{ status }` | **200** `Pedido` | `pedidosService.atualizarStatus` |
 
 Regras:
-- **`POST /pedidos` reaproveita o checkout seguro do FCCPD U1** (`src/checkout-seguro.js`: `UPDATE`
+- **`POST /pedidos` reaproveita o checkout seguro do FCCPD U1** (`src/services/checkout-seguro.service.js`: `UPDATE`
   condicional + ordenação por `produto_id` contra deadlock). O cliente manda só `produtoId` e
   `quantidade`: preço vem do banco (o navegador nunca dita o preço). Frete: grátis a partir de
   R$ 400 de subtotal, senão R$ 35,90 (mesma regra de `useCarrinho`). Previsão: data do pedido + 8 dias.
@@ -252,7 +252,7 @@ Regras:
 Não fazem parte do produto, mas ficam no ar para os testes e evidências da U1:
 `GET /saude`, `POST /pedidos-naive`, `POST /produtos/:id/imagens` (fila), `GET /fila`,
 `POST /teste/reiniciar`, `POST /teste/fila`. As rotas `/teste/*` só devem existir em desenvolvimento.
-Estão em `backend/src/rotas/laboratorio.js`.
+Estão em `backend/src/routes/laboratorio.routes.js`.
 
 `POST /teste/reiniciar` apaga os pedidos e a fila e recoloca o estoque de todos os produtos. Das
 imagens, apaga **só as que passaram pela fila** (status diferente de `disponivel` ou com hash gravado

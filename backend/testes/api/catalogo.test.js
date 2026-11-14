@@ -11,7 +11,7 @@ import { test, before, after, describe } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { app } from "../../src/app.js";
-import { pool } from "../../src/db.js";
+import { pool } from "../../src/config/database.js";
 import { gerarToken } from "../../src/middlewares/autenticacao.js";
 
 const DOMINIO_TESTE = "@teste.origem.invalid";
