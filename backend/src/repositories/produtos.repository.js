@@ -68,3 +68,50 @@ export function buscarPorIds(ids) {
 /** Produto que aparece na vitrine: ativo e de artesão aprovado. */
 export const ehPublico = (produto) => produto?.status === "ativo" && produto.artesao.aprovado;
 
+
+/** Cria o produto e a imagem principal (ordem 0) num comando só (transação do Prisma). */
+export function criar({ artesaoId, categoriaId, tecnicaId, regiaoId, nome, descricao, preco, estoque, imagem }) {
+  return prisma.produto.create({
+    data: {
+      artesao_id: BigInt(artesaoId),
+      categoria_id: categoriaId,
+      tecnica_id: tecnicaId,
+      regiao_id: regiaoId,
+      nome,
+      descricao,
+      preco,
+      estoque,
+      produto_imagem: { create: { chave_armazenamento: imagem, content_type: "image/jpeg", ordem: 0 } },
+    },
+    include: INCLUDE_PRODUTO,
+  });
+}
+
+/**
+ * Atualiza os dados do produto e troca a imagem principal (ordem 0), numa
+ * transação. As outras fotos (ordem 1, 2...) ficam como estão.
+ */
+export function atualizar(id, { categoriaId, tecnicaId, regiaoId, nome, descricao, preco, estoque, imagem }) {
+  const produtoId = BigInt(id);
+  return prisma.$transaction(async (tx) => {
+    await tx.produto.update({
+      where: { id: produtoId },
+      data: { categoria_id: categoriaId, tecnica_id: tecnicaId, regiao_id: regiaoId, nome, descricao, preco, estoque, atualizado_em: new Date() },
+    });
+    const principal = await tx.produto_imagem.findFirst({ where: { produto_id: produtoId, ordem: 0 }, orderBy: { id: "asc" } });
+    if (principal) {
+      await tx.produto_imagem.update({ where: { id: principal.id }, data: { chave_armazenamento: imagem } });
+    } else {
+      await tx.produto_imagem.create({ data: { produto_id: produtoId, chave_armazenamento: imagem, content_type: "image/jpeg", ordem: 0 } });
+    }
+    return tx.produto.findUnique({ where: { id: produtoId }, include: INCLUDE_PRODUTO });
+  });
+}
+
+/**
+ * Exclusão LÓGICA: o produto pode estar em pedidos antigos (item_pedido), e a
+ * chave estrangeira impede apagar a linha. Inativo, ele some da vitrine.
+ */
+export function desativar(id) {
+  return prisma.produto.update({ where: { id: BigInt(id) }, data: { status: "inativo", atualizado_em: new Date() } });
+}
