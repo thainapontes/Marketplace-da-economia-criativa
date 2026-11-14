@@ -4,6 +4,8 @@
 //   gerarToken(usuario)          → string assinada, válida por JWT_VALIDADE
 //   autenticar                   → middleware: exige "Authorization: Bearer <token>"
 //                                  e preenche req.usuario
+//   autenticarSeHouver           → middleware: req.usuario se houver token válido,
+//                                  senão null (rotas públicas)
 //   exigirPerfil("artesao", ...) → middleware: 403 se o perfil não estiver na lista
 //
 // Uso numa rota:
@@ -41,7 +43,30 @@ function naoAutenticado(mensagem = "Faça login para continuar.") {
  * O perfil também vem do banco, não do token.
  */
 export async function autenticar(req, _res, next) {
-  const [tipo, token] = (req.headers.authorization ?? "").split(" ");
+  req.usuario = await usuarioDoToken(req.headers.authorization);
+  next();
+}
+
+/**
+ * Para rotas PÚBLICAS que mostram algo a mais ao dono (ex.: o artesão vê os
+ * próprios produtos inativos). Sem token, ou com token inválido/expirado, a
+ * requisição segue como visitante (req.usuario = null) em vez de dar 401: uma
+ * sessão vencida guardada no navegador não pode derrubar a vitrine.
+ */
+export async function autenticarSeHouver(req, _res, next) {
+  req.usuario = null;
+  if (req.headers.authorization) {
+    try {
+      req.usuario = await usuarioDoToken(req.headers.authorization);
+    } catch (erro) {
+      if (!(erro instanceof ErroApi)) throw erro; // falha de banco não vira "visitante"
+    }
+  }
+  next();
+}
+
+async function usuarioDoToken(cabecalho = "") {
+  const [tipo, token] = cabecalho.split(" ");
   if (tipo !== "Bearer" || !token) throw naoAutenticado();
 
   let conteudo;
@@ -58,9 +83,7 @@ export async function autenticar(req, _res, next) {
 
   const resultado = await pool.query(`SELECT ${COLUNAS_USUARIO} FROM usuario WHERE id = $1`, [id]);
   if (resultado.rowCount === 0) throw naoAutenticado("Esta conta não existe mais.");
-
-  req.usuario = resultado.rows[0];
-  next();
+  return resultado.rows[0];
 }
 
 /** Deve vir DEPOIS de `autenticar` na lista de middlewares da rota. */

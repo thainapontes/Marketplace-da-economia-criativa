@@ -30,7 +30,7 @@ Para a Fase 2 saber o que já pode trocar no frontend:
 |---|---|---|
 | Estrutura, erros, CORS | 1.0 | ✅ pronto |
 | `/auth/*`, `GET /usuarios/:id` | 1.1 | ✅ pronto |
-| `/filtros`, `GET /produtos`, `/artesoes`, `GET` avaliações | 1.2 | ⏳ |
+| `/filtros`, `GET /produtos`, `/artesoes`, `GET` avaliações | 1.2 | ✅ pronto |
 | `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores` | 1.3 | ⏳ |
 | `/carrinho/validar`, `/pedidos` | 1.4 | ⏳ (`POST /pedidos` ainda é a versão da U1) |
 | `POST` avaliações, `/admin/*` | 1.5 | ⏳ |
@@ -186,7 +186,16 @@ usuário. Assim ninguém descobre quais ids existem comparando 403 com 404.
 Regras:
 - **Listagem pública** (`GET /produtos`) mostra só produtos `ativo` de artesãos **aprovados**.
   Exceção: com `artesaoId` igual ao do artesão logado, mostra também os inativos dele (painel do artesão).
-- **Filtros** comparam pelo nome (`regiao=Agreste`). O valor `Todas` (usado pelos selects do frontend) é ignorado.
+  Ordem: por `id`. O token é opcional nas rotas públicas: token vencido ou inválido é tratado como
+  visitante (não dá 401), para uma sessão velha no navegador não derrubar a vitrine.
+- **`GET /produtos/:id`** e **`GET /produtos/:id/avaliacoes`**: produto inativo ou de artesão não aprovado
+  só aparece para o dono e o admin. Para os outros, **404**, como se não existisse.
+- **`GET /artesoes/:id`**: cadastro pendente só aparece para o próprio artesão e o admin (os outros recebem **404**).
+  Id de comprador ou admin também dá 404 (não é artesão).
+- **Imagens**: só as de `produto_imagem.status = 'disponivel'`. Produto sem foto: `imagem: ""` e `imagens: []`.
+- **`avaliacaoMedia`** é arredondada para 1 casa decimal. **`desde`**: se o artesão não informou
+  `ano_inicio`, vale o ano do cadastro.
+- **Filtros** comparam pelo nome (`regiao=Agreste`). O valor `Todas` (usado pelos selects do frontend) é ignorado. Vazio também. Parâmetro repetido (`?regiao=A&regiao=B`) ou `artesaoId` não numérico → **400**.
 - **`busca`** procura em nome do produto, nome do artesão e técnica, sem diferenciar maiúsculas e acentos
   (`unaccent` + `ILIKE`). Com o catálogo pequeno isso é uma varredura sequencial e basta; o índice
   trigram `idx_produto_nome_trgm` (sobre `nome` puro) **não** é usado por essa expressão. Criar um
