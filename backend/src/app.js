@@ -17,6 +17,7 @@ import { config } from "./config.js";
 import { rotasLaboratorio } from "./rotas/laboratorio.js";
 import { rotasAuth } from "./rotas/auth.js";
 import { rotasUsuarios } from "./rotas/usuarios.js";
+import { rotasCatalogo } from "./rotas/catalogo.js";
 import { rotaNaoEncontrada, tratadorDeErros } from "./middlewares/erros.js";
 
 export const app = express();
@@ -30,6 +31,7 @@ app.use(express.json());
 app.use(rotasLaboratorio);
 app.use(rotasAuth);
 app.use(rotasUsuarios);
+app.use(rotasCatalogo);
 
 app.use(rotaNaoEncontrada);
 app.use(tratadorDeErros);

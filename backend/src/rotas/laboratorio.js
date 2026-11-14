@@ -5,7 +5,6 @@
 // os testes e as evidências da U1 dependem delas.
 //
 //   GET  /saude                — o banco está de pé? (usado pelos scripts de teste)
-//   GET  /produtos/:id         — consulta um produto (para ler o estoque atual)
 //   POST /pedidos              — checkout SEGURO (ou o ingênuo, se NAIVE_CHECKOUT=true)
 //   POST /pedidos-naive        — checkout INGÊNUO sempre, para o teste comparativo
 //   POST /produtos/:id/imagens — registra a imagem e ENFILEIRA o processamento; 202 na hora
@@ -13,8 +12,9 @@
 //   POST /teste/reiniciar      — zera pedidos, fila e estoque (auxiliar de teste)
 //   POST /teste/fila           — enfileira N jobs de uma vez (teste de carga)
 //
-// Ao longo da Fase 1, GET /produtos/:id e POST /pedidos ganham versões
-// completas do contrato (docs/api.md) e saem daqui.
+// Ao longo da Fase 1, as rotas do produto saem daqui. GET /produtos/:id saiu na
+// etapa 1.2 (rotas/catalogo.js, mesmos campos id/nome/preco/estoque/status que o
+// teste de concorrência lê); POST /pedidos sai na 1.4.
 // ============================================================================
 
 import { Router } from "express";
@@ -63,24 +63,6 @@ rotasLaboratorio.get("/saude", async (_req, res) => {
   } catch (erro) {
     res.status(503).json({ ok: false, mensagem: String(erro?.message ?? erro) });
   }
-});
-
-rotasLaboratorio.get("/produtos/:id", async (req, res) => {
-  const resultado = await pool.query(
-    `SELECT id, nome, preco, estoque, status FROM produto WHERE id = $1`,
-    [Number(req.params.id)],
-  );
-  if (resultado.rowCount === 0) {
-    throw new ErroApi(404, "PRODUTO_INEXISTENTE", `Produto ${req.params.id} não encontrado.`);
-  }
-  const p = resultado.rows[0];
-  res.json({
-    id: Number(p.id),
-    nome: p.nome,
-    preco: Number(p.preco),
-    estoque: p.estoque,
-    status: p.status,
-  });
 });
 
 /** Checkout padrão: seguro, salvo se NAIVE_CHECKOUT=true no ambiente. */

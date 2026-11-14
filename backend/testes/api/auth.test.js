@@ -178,6 +178,16 @@ describe("POST /auth/registrar", () => {
       assertErro(await request(app).post("/auth/registrar").send({ ...ok, ...ruim }), 400, "CORPO_INVALIDO");
     }
   });
+
+  // CT-26: os limites exatos (6 e 72 caracteres) são ACEITOS, e a senha de 72 funciona no login.
+  test("senhas nos limites (6 e 72 caracteres) são aceitas", async () => {
+    for (const senha of ["123456", "a".repeat(72)]) {
+      const email = emailNovo();
+      const r = await request(app).post("/auth/registrar").send({ nome: "Teste", email, senha, perfil: "comprador" });
+      assert.equal(r.status, 201, `senha de ${senha.length}: ${JSON.stringify(r.body)}`);
+      assert.equal((await login(email, senha)).status, 200);
+    }
+  });
 });
 
 describe("GET /auth/eu e tokens", () => {

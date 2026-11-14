@@ -31,13 +31,15 @@ src/
 ├── validacao.js         validação de entrada (texto, e-mail, id de URL) → 400
 ├── middlewares/
 │   ├── erros.js         ErroApi + tratadorDeErros (formato { erro, mensagem })
-│   └── autenticacao.js  gerarToken, autenticar (JWT → req.usuario), exigirPerfil
+│   └── autenticacao.js  gerarToken, autenticar (JWT → req.usuario), autenticarSeHouver, exigirPerfil
 ├── mapeadores/
-│   └── usuario.js       linha do banco → objeto da API (nunca expõe senha_hash)
+│   ├── usuario.js       linha do banco → objeto da API (nunca expõe senha_hash)
+│   └── catalogo.js      SELECT + mapeador de Produto, Artesao e Avaliacao (reuse nas próximas etapas)
 ├── rotas/
 │   ├── laboratorio.js   rotas do FCCPD U1 (não mexer sem rodar a bateria da U1)
 │   ├── auth.js          /auth/registrar, /auth/login, /auth/eu
-│   └── usuarios.js      /usuarios/:id
+│   ├── usuarios.js      /usuarios/:id
+│   └── catalogo.js      /filtros, GET /produtos, /produtos/:id, /produtos/:id/avaliacoes, /artesoes
 ├── db.js                pool + comTransacao
 ├── pedido.js, checkout-*.js, fila.js, tarefas.js, worker.js   (FCCPD U1)
 testes/
@@ -55,6 +57,8 @@ testes/
    Use só os códigos da seção 2 do contrato.
 4. Rota que exige login: `router.get("/x", autenticar, exigirPerfil("artesao"), async (req, res) => ...)`.
    O usuário logado fica em `req.usuario` (linha do banco: `id`, `nome`, `email`, `perfil`...).
+   Rota pública que mostra algo a mais ao dono: `autenticarSeHouver` (sem token ou com token
+   vencido, `req.usuario` fica `null` e a rota segue como visitante).
 5. Escreva o teste em `testes/api/<recurso>.test.js` (veja `fundacao.test.js`): caminho feliz e
    cada erro previsto no contrato.
    Para testar rota protegida, faça login com uma conta do seed (senha `origem123`) e envie o token.
@@ -66,7 +70,7 @@ testes/
 
 - Datas: `db.js` lê as colunas `TIMESTAMP` como UTC. Sem isso, toda data sairia deslocada pelo
   fuso da máquina (3 h em Recife).
-- `GET /produtos/:id` e `POST /pedidos` ainda são as versões da U1 (em `rotas/laboratorio.js`).
-  Elas são substituídas nas etapas 1.2 e 1.4, mantendo os campos que os testes da U1 leem.
-- `POST /teste/reiniciar` apaga pedidos e fila e recoloca o estoque. Não rode os testes de
-  carga num banco com dados que você quer guardar.
+- `POST /pedidos` ainda é a versão da U1 (em `rotas/laboratorio.js`) e será substituída na etapa 1.4.
+  `GET /produtos/:id` já é a do contrato (etapa 1.2) e mantém os campos que os testes da U1 leem.
+- `POST /teste/reiniciar` apaga **todos** os pedidos (inclusive os 3 do seed) e a fila, e recoloca o
+  estoque. Depois da bateria da U1, volte ao seed com `docker compose down -v && docker compose up -d`.

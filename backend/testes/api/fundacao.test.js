@@ -57,8 +57,10 @@ test("GET /produtos/:id mantém os campos que os testes do FCCPD leem", async ()
   assert.equal(typeof r.body.preco, "number");
 });
 
-test("GET /produtos/:id inexistente devolve 404 PRODUTO_INEXISTENTE", async () => {
-  assertErro(await request(app).get("/produtos/999999"), 404, "PRODUTO_INEXISTENTE");
+// Na etapa 1.2 a rota passou para o contrato (docs/api.md, seção 2): NAO_ENCONTRADO.
+// Nenhum script do FCCPD U1 confere esse código.
+test("GET /produtos/:id inexistente devolve 404 NAO_ENCONTRADO", async () => {
+  assertErro(await request(app).get("/produtos/999999"), 404, "NAO_ENCONTRADO");
 });
 
 test("CORS libera a origem do frontend", async () => {
