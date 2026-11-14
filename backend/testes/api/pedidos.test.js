@@ -113,7 +113,7 @@ describe("POST /pedidos", () => {
     const r = await comprar(t.comprador.token, [{ produtoId: t.barato, quantidade: 1 }, { produtoId: t.doOutro, quantidade: 1 }]);
     assert.equal(r.status, 201);
     const { rows } = await pool.query(
-      `SELECT chave_idempotencia FROM evento_assincrono
+      `SELECT chave_idempotencia, payload->>'mensagem' AS mensagem FROM evento_assincrono
         WHERE tipo = 'notificar_pedido' AND payload->>'pedidoId' = (SELECT id::text FROM pedido WHERE codigo = $1)
         ORDER BY chave_idempotencia`,
       [r.body.codigo],
@@ -124,6 +124,8 @@ describe("POST /pedidos", () => {
       `notificar-artesao:${pedidoId}:${t.outroArtesao.id}`,
       `notificar-comprador:${pedidoId}`,
     ].sort());
+    // A mensagem cita o código que o usuário vê na tela, não o id interno do banco.
+    assert.ok(rows.every((l) => l.mensagem.includes(r.body.codigo)), JSON.stringify(rows));
   });
 
   test("sem estoque: 409 e NADA muda (nem o item que tinha estoque)", async () => {
