@@ -42,6 +42,10 @@ export const config = {
   recomendacaoUrl: (process.env.RECOMENDACAO_URL ?? "http://localhost:3001").replace(/\/+$/, ""),
   recomendacaoTimeoutMs: Number(process.env.RECOMENDACAO_TIMEOUT_MS ?? 2000), // RF-08 / RNF-02
 
+  // [U2 · J.1] true = o worker da fila roda dentro do processo da API (Render
+  // gratuito, que não tem worker). Localmente, deixe false e use npm run worker.
+  workerEmbutido: process.env.WORKER_EMBUTIDO === "true",
+
   cookieSeguro: (process.env.COOKIE_SECURE ?? (process.env.NODE_ENV === "production" ? "true" : "false")) === "true",
 };
 

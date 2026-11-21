@@ -386,3 +386,5 @@ a usar sessão real (JWT/cookies) dentro de `authStore`/`useAuth`, e a Fake API 
 ## Status de publicação
 
 URL do DEPLOY: https://marketplace-da-economia-criativa.vercel.app/cadastro
+
+**U2:** o passo a passo do deploy completo (banco no Neon, API e IA no Render, frontend na Vercel com o rewrite `/api`) está em [`docs/deploy.md`](docs/deploy.md).

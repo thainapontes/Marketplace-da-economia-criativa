@@ -7,6 +7,7 @@
   "scripts": {
     "api": "node src/server.js",
     "worker": "node src/worker.js",
+    "banco:criar": "node scripts/criar-banco.js",
     "test": "node --test testes/api/",
     "postinstall": "prisma generate",
     "prisma:pull": "prisma db pull && prisma generate",

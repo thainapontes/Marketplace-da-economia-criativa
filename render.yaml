@@ -1,0 +1,68 @@
+# ============================================================================
+# Deploy no Render (Blueprint): API e módulo de IA, os dois no plano gratuito.
+# O banco NÃO fica aqui: é o Neon (o Postgres gratuito do Render expira em
+# 30 dias). Passo a passo em docs/deploy.md.
+#
+# Variáveis com "sync: false" são pedidas pelo Render na hora de criar o
+# Blueprint (endereços e senhas não ficam no repositório).
+# Este é o ÚNICO arquivo específico do Render: o código só lê variáveis de ambiente.
+# ============================================================================
+
+services:
+  # --------------------------------------------------------------- API (Node)
+  - type: web
+    name: origem-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    # --include=dev: o Prisma CLI (devDependency) gera o client no postinstall.
+    buildCommand: npm ci --include=dev
+    startCommand: npm run api
+    healthCheckPath: /saude
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # O Render gratuito não tem worker: a fila roda dentro da API (J.1).
+      - key: WORKER_EMBUTIDO
+        value: "true"
+      # Endereço do Neon, com ?sslmode=require.
+      - key: DATABASE_URL
+        sync: false
+      # O plano gratuito do Neon aceita poucas conexões: pool menor que o local.
+      - key: PG_POOL_MAX
+        value: "5"
+      # Segredo dos tokens: o Render sorteia um valor longo na criação.
+      - key: JWT_SECRET
+        generateValue: true
+      # URL do frontend na Vercel (ex.: https://origem.vercel.app).
+      - key: CORS_ORIGEM
+        sync: false
+      # URL pública do módulo de IA abaixo (ex.: https://origem-ia.onrender.com).
+      - key: RECOMENDACAO_URL
+        sync: false
+      # A IA gratuita dorme e leva cerca de 1 min para acordar: enquanto isso,
+      # a API responde pela popularidade em 2 s (RF-08), sem travar a página.
+      - key: RECOMENDACAO_TIMEOUT_MS
+        value: "2000"
+
+  # ------------------------------------------------------ módulo de IA (Python)
+  - type: web
+    name: origem-ia
+    runtime: python
+    plan: free
+    rootDir: ia-recomendacao
+    buildCommand: pip install uv && uv sync --frozen
+    startCommand: uv run bentoml serve service:RecomendadorOrigem --host 0.0.0.0 --port $PORT
+    # Rota leve que não depende do banco.
+    healthCheckPath: /api/recomendacoes/metricas
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13"
+      # O mesmo endereço do Neon da API: a IA lê os mesmos dados.
+      - key: DATABASE_URL
+        sync: false
+      # URL do frontend na Vercel (só importa se o navegador chamar a IA direto).
+      - key: RECOMENDACAO_CORS
+        sync: false

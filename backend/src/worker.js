@@ -3,6 +3,8 @@
 //
 // Subir:  npm run worker            (em OUTRO terminal, junto com a API)
 // Vários: npm run worker & npm run worker &   -> dividem o trabalho sozinhos
+// Em produção no Render (sem worker gratuito): WORKER_EMBUTIDO=true faz o
+// server.js rodar este mesmo laço dentro do processo da API (ver iniciarWorker).
 //
 // POR QUE UM PROCESSO SEPARADO, e não uma thread dentro do servidor web?
 //
@@ -27,6 +29,7 @@
 // ============================================================================
 
 import os from "node:os";
+import { pathToFileURL } from "node:url";
 import { pool } from "./config/database.js";
 import { reservar, confirmar, falhar, recuperarOrfaos } from "./repositories/fila.repository.js";
 import { executarTarefa } from "./services/tarefas.service.js";
@@ -93,7 +96,7 @@ async function processar(job) {
   }
 }
 
-/** Laço principal: recupera órfãos, reserva um lote, processa, repete. */
+/** Laço principal: recupera órfãos, reserva um lote, processa, repete. Termina quando `rodando` vira false. */
 async function laco() {
   log(`iniciado. lote=${LOTE} intervalo=${INTERVALO_MS}ms taxaFalha=${process.env.TAXA_FALHA ?? 0}`);
   log("aguardando jobs… (Ctrl+C para encerrar com elegância)");
@@ -131,10 +134,29 @@ async function laco() {
     }
   }
 
-  log("encerrando: fechando o pool de conexões.");
-  await pool.end();
-  log("encerrado.");
-  process.exit(0);
+  log("laço encerrado.");
+}
+
+/**
+ * Liga o laço e devolve { parar }, que pede para terminar o job atual e espera
+ * o laço acabar. Usado de dois jeitos:
+ *   - sozinho (npm run worker): ver o final do arquivo;
+ *   - embutido na API (WORKER_EMBUTIDO=true, server.js): o Render gratuito não
+ *     tem processo de worker, então o mesmo laço roda dentro da API, dividindo
+ *     o pool de conexões com ela. O desacoplamento continua o mesmo: API e
+ *     worker só conversam pela tabela da fila. O que se perde é o isolamento de
+ *     falha (item 1 lá em cima), e é por isso que localmente seguimos com o
+ *     processo separado.
+ */
+export function iniciarWorker() {
+  rodando = true;
+  const terminou = laco();
+  return {
+    async parar() {
+      rodando = false;
+      await terminou;
+    },
+  };
 }
 
 // ----------------------------------------------------------------------------
@@ -149,12 +171,20 @@ async function laco() {
 // impossível de tratar por definição: contra ela, a proteção é a varredura de
 // órfãos — e é exatamente esse cenário que o teste da Etapa 3 vai provocar.
 // ----------------------------------------------------------------------------
-for (const sinal of ["SIGINT", "SIGTERM"]) {
-  process.on(sinal, () => {
-    if (!rodando) return;
-    log(`recebi ${sinal} — terminando o job atual antes de sair…`);
-    rodando = false;
-  });
+// Só quando este arquivo é o programa (npm run worker). Importado pelo
+// server.js, quem cuida dos sinais é a API.
+const ehOPrograma = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (ehOPrograma) {
+  const worker = iniciarWorker();
+  for (const sinal of ["SIGINT", "SIGTERM"]) {
+    process.on(sinal, async () => {
+      if (!rodando) return;
+      log(`recebi ${sinal} — terminando o job atual antes de sair…`);
+      await worker.parar();
+      log("encerrando: fechando o pool de conexões.");
+      await pool.end();
+      log("encerrado.");
+      process.exit(0);
+    });
+  }
 }
-
-laco();
