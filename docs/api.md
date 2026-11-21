@@ -37,7 +37,7 @@ Para o frontend saber o que já pode trocar. As letras são as etapas de [`docs/
 | `/carrinho` (salvo no banco), `/pedidos` | D | ✅ pronto |
 | `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores`, cache | C | ✅ pronto |
 | `POST` avaliações, `/admin/*`, `/recomendacoes/*` (repasse da IA) | E | ✅ pronto |
-| Swagger em `/docs` | F | ⏳ |
+| Swagger em `/docs` (especificação em `backend/openapi.yaml`, também em `/openapi.yaml`) | F | ✅ pronto |
 
 ---
 

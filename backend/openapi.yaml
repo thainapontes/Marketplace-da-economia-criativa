@@ -1,0 +1,695 @@
+openapi: 3.0.3
+info:
+  title: API do Origem
+  version: "2.0.0"
+  description: |
+    API REST do marketplace **Origem**, da economia criativa de Pernambuco (U2).
+    Esta especificação foi escrita à mão a partir do contrato `docs/api.md`, que continua sendo a
+    referência das regras. A interface fica em `/docs` e este arquivo em `/openapi.yaml`.
+
+    **Autenticação:** `POST /auth/login` devolve o `token` e grava o cookie httpOnly `origem_sessao`.
+    O navegador usa o cookie sozinho. Nos testes, use o botão **Authorize** com o token
+    (cabeçalho `Authorization: Bearer <token>`). Contas do seed: `comprador@origem.com.br`,
+    `maria@origem.com.br` (artesã) e `admin@origem.com.br`, todas com a senha `origem123`.
+
+    **Erros:** sempre `{ "erro": "CODIGO", "mensagem": "texto para a tela" }`.
+servers:
+  - url: /
+    description: O mesmo endereço desta página (local ou publicado)
+  - url: http://localhost:3333
+    description: Desenvolvimento local (npm run api)
+tags:
+  - name: Autenticação
+  - name: Catálogo
+  - name: Avaliações
+  - name: Painel do artesão
+  - name: Carrinho
+  - name: Pedidos
+  - name: Recomendações
+    description: Repasse do módulo de IA (ia-recomendacao/), com o usuário do login.
+  - name: Administração
+  - name: Laboratório FCCPD
+    description: Rotas da U1 de FCCPD, mantidas para os testes e as evidências. Não fazem parte do produto.
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookie:
+      type: apiKey
+      in: cookie
+      name: origem_sessao
+
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    codigo:
+      name: codigo
+      in: path
+      required: true
+      description: Código do pedido que o usuário vê na tela.
+      schema: { type: string, example: PE-4821 }
+    limite:
+      name: limite
+      in: query
+      required: false
+      description: Quantos itens (1 a 20).
+      schema: { type: integer, minimum: 1, maximum: 20 }
+
+  responses:
+    Erro400:
+      description: Corpo ou parâmetro inválido (CORPO_INVALIDO).
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+    Erro401:
+      description: Sem login, ou sessão inválida ou expirada (NAO_AUTENTICADO).
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+    Erro403:
+      description: Perfil sem acesso, ou recurso de outro usuário (SEM_PERMISSAO).
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+    Erro404:
+      description: Não existe, ou não é visível para quem pediu (NAO_ENCONTRADO).
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+    Erro409:
+      description: Conflito (EMAIL_EM_USO, ESTOQUE_INSUFICIENTE ou AVALIACAO_DUPLICADA).
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+
+  schemas:
+    Erro:
+      type: object
+      required: [erro, mensagem]
+      properties:
+        erro: { type: string, example: NAO_ENCONTRADO }
+        mensagem: { type: string, example: Produto 999 não encontrado. }
+
+    Perfil:
+      type: string
+      enum: [comprador, artesao, administrador]
+
+    Usuario:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        nome: { type: string, example: Camila Torres }
+        email: { type: string, example: comprador@origem.com.br }
+        perfil: { $ref: "#/components/schemas/Perfil" }
+        avatarUrl: { type: string }
+        artesaoId: { type: integer, description: "Só para artesão: igual ao id do usuário." }
+        criadoEm: { type: string, format: date-time }
+
+    Sessao:
+      type: object
+      properties:
+        token: { type: string, description: "JWT. O mesmo valor vai no cookie httpOnly." }
+        usuario: { $ref: "#/components/schemas/Usuario" }
+
+    Produto:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        nome: { type: string, example: Cangaceiro de Barro — Lampião e Maria Bonita }
+        descricao: { type: string }
+        preco: { type: number, example: 285 }
+        precoOriginal: { type: number, example: 340, description: "Só aparece quando existe." }
+        imagem: { type: string, description: "A primeira de imagens, ou vazio." }
+        imagens: { type: array, items: { type: string } }
+        categoria: { type: string, example: Cerâmica }
+        tecnica: { type: string, example: Barro Cozido }
+        regiao: { type: string, example: Agreste }
+        artesao: { type: string, example: Maria das Graças Silva }
+        artesaoId: { type: integer, example: 2 }
+        estoque: { type: integer, example: 3 }
+        status: { type: string, enum: [ativo, inativo] }
+
+    NovoProduto:
+      type: object
+      required: [nome, preco, estoque, categoria, tecnica, regiao, imagem]
+      properties:
+        nome: { type: string, minLength: 3, maxLength: 150 }
+        descricao: { type: string, maxLength: 2000 }
+        preco: { type: number, minimum: 0.01, description: "Até 2 casas decimais." }
+        estoque: { type: integer, minimum: 0 }
+        categoria: { type: string, description: "Um nome de GET /filtros." }
+        tecnica: { type: string, description: "Um nome de GET /filtros." }
+        regiao: { type: string, description: "Um nome de GET /filtros." }
+        imagem: { type: string, description: "Endereço http(s). Vira a foto principal." }
+      example:
+        nome: Moringa de Barro
+        descricao: Moringa queimada em forno a lenha.
+        preco: 89.9
+        estoque: 5
+        categoria: Cerâmica
+        tecnica: Barro Cozido
+        regiao: Agreste
+        imagem: https://exemplo.org/moringa.jpg
+
+    Artesao:
+      type: object
+      properties:
+        id: { type: integer, example: 2 }
+        usuarioId: { type: integer, example: 2 }
+        nome: { type: string }
+        nomeAtelie: { type: string }
+        cidade: { type: string }
+        regiao: { type: string }
+        biografia: { type: string }
+        fotoUrl: { type: string }
+        capaUrl: { type: string }
+        tecnicas: { type: array, items: { type: string } }
+        avaliacaoMedia: { type: number, example: 4.5, description: "Calculada, com 1 casa decimal." }
+        totalVendas: { type: integer, description: "Pedidos não cancelados com item dele." }
+        totalProdutos: { type: integer, description: "Produtos ativos." }
+        desde: { type: integer, example: 1993 }
+        aprovado: { type: boolean }
+
+    Avaliacao:
+      type: object
+      properties:
+        id: { type: integer }
+        produtoId: { type: integer }
+        usuarioNome: { type: string, description: "Vem do login de quem avaliou." }
+        nota: { type: integer, minimum: 1, maximum: 5 }
+        comentario: { type: string }
+        criadoEm: { type: string, format: date-time }
+
+    NovaAvaliacao:
+      type: object
+      required: [nota]
+      properties:
+        nota: { type: integer, minimum: 1, maximum: 5 }
+        comentario: { type: string, maxLength: 1000 }
+      example: { nota: 5, comentario: Peça linda, chegou bem embalada. }
+
+    ItemDeCompra:
+      type: object
+      required: [produtoId, quantidade]
+      properties:
+        produtoId: { type: integer, minimum: 1 }
+        quantidade: { type: integer, minimum: 1, maximum: 99 }
+
+    Itens:
+      type: object
+      required: [itens]
+      properties:
+        itens:
+          type: array
+          maxItems: 50
+          description: Cada produto uma vez só.
+          items: { $ref: "#/components/schemas/ItemDeCompra" }
+      example: { itens: [{ produtoId: 1, quantidade: 1 }, { produtoId: 3, quantidade: 2 }] }
+
+    ItemCarrinho:
+      type: object
+      properties:
+        produto: { $ref: "#/components/schemas/Produto" }
+        quantidade: { type: integer }
+
+    ProblemaEstoque:
+      type: object
+      properties:
+        produtoId: { type: integer }
+        nome: { type: string }
+        disponivel: { type: integer }
+        solicitado: { type: integer }
+
+    StatusPedido:
+      type: string
+      enum: [pendente, confirmado, em_producao, enviado, entregue, cancelado]
+
+    NovoPedido:
+      type: object
+      required: [enderecoEntrega, metodoPagamento, itens]
+      properties:
+        enderecoEntrega: { type: string }
+        metodoPagamento: { type: string, enum: [cartao, pix, boleto] }
+        itens:
+          type: array
+          items: { $ref: "#/components/schemas/ItemDeCompra" }
+      example:
+        enderecoEntrega: Rua das Flores, 120 — Recife, PE
+        metodoPagamento: pix
+        itens: [{ produtoId: 1, quantidade: 1 }]
+
+    Pedido:
+      type: object
+      properties:
+        codigo: { type: string, example: PE-4821 }
+        data: { type: string, format: date-time }
+        clienteEmail: { type: string }
+        enderecoEntrega: { type: string }
+        itens:
+          type: array
+          description: Em produto.preco vai o preço PAGO, não o atual.
+          items: { $ref: "#/components/schemas/ItemCarrinho" }
+        subtotal: { type: number }
+        frete: { type: number, description: "Grátis a partir de R$ 400, senão R$ 35,90." }
+        total: { type: number }
+        status: { $ref: "#/components/schemas/StatusPedido" }
+        previsaoEntrega: { type: string, format: date-time }
+        pagamento:
+          type: object
+          properties:
+            metodo: { type: string, enum: [cartao, pix, boleto] }
+            status: { type: string, enum: [aprovado, recusado] }
+            valor: { type: number }
+            processadoEm: { type: string, format: date-time }
+
+    Recomendado:
+      allOf:
+        - $ref: "#/components/schemas/Produto"
+        - type: object
+          properties:
+            criterio: { type: string, example: mesmo-artesao }
+            score: { type: number }
+
+    Recomendacoes:
+      type: object
+      properties:
+        produtoReferenciaId: { type: integer, description: "Só em /recomendacoes/produtos/{id}." }
+        usuarioId: { type: integer, description: "Só em /recomendacoes/eu." }
+        fonte:
+          type: string
+          enum: [ia, popularidade]
+          description: "ia = veio do módulo de IA; popularidade = a IA caiu ou passou de 2 s, e a lista são os mais vendidos."
+        recomendacoes:
+          type: array
+          items: { $ref: "#/components/schemas/Recomendado" }
+
+paths:
+  # ------------------------------------------------------------- autenticação
+  /auth/registrar:
+    post:
+      tags: [Autenticação]
+      summary: Cadastra comprador ou artesão
+      description: Artesão precisa de regiao e nasce não aprovado. Ninguém se cadastra como administrador.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome, email, senha, perfil]
+              properties:
+                nome: { type: string, minLength: 2, maxLength: 150 }
+                email: { type: string, maxLength: 180 }
+                senha: { type: string, minLength: 6, maxLength: 72 }
+                perfil: { type: string, enum: [comprador, artesao] }
+                regiao: { type: string, description: "Obrigatória para artesão." }
+            example: { nome: Ana Souza, email: ana@exemplo.com, senha: segredo1, perfil: comprador }
+      responses:
+        "201": { description: "Cadastrado e já logado.", content: { application/json: { schema: { $ref: "#/components/schemas/Sessao" } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "409": { $ref: "#/components/responses/Erro409" }
+  /auth/login:
+    post:
+      tags: [Autenticação]
+      summary: Entra e recebe o token (e o cookie de sessão)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, senha]
+              properties:
+                email: { type: string }
+                senha: { type: string }
+            example: { email: comprador@origem.com.br, senha: origem123 }
+      responses:
+        "200": { description: "Logado.", content: { application/json: { schema: { $ref: "#/components/schemas/Sessao" } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "401": { description: "E-mail ou senha errados (CREDENCIAIS_INVALIDAS).", content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } } }
+  /auth/eu:
+    get:
+      tags: [Autenticação]
+      summary: Usuário da sessão atual
+      security: [{ bearer: [] }, { cookie: [] }]
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { $ref: "#/components/schemas/Usuario" } } } }
+        "401": { $ref: "#/components/responses/Erro401" }
+  /auth/sair:
+    post:
+      tags: [Autenticação]
+      summary: Sai (apaga o cookie de sessão)
+      responses:
+        "204": { description: "Cookie apagado." }
+  /usuarios/{id}:
+    get:
+      tags: [Autenticação]
+      summary: Um usuário (só o próprio ou o admin)
+      security: [{ bearer: [] }, { cookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/id" }]
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { $ref: "#/components/schemas/Usuario" } } } }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+        "404": { $ref: "#/components/responses/Erro404" }
+
+  # ------------------------------------------------------------------ catálogo
+  /filtros:
+    get:
+      tags: [Catálogo]
+      summary: Opções dos filtros e do formulário de produto
+      description: Fica em cache por CACHE_TTL_MS (cabeçalho X-Cache HIT ou MISS).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  regioes: { type: array, items: { type: string } }
+                  categorias: { type: array, items: { type: string } }
+                  tecnicas: { type: array, items: { type: string } }
+  /produtos:
+    get:
+      tags: [Catálogo]
+      summary: Vitrine, com busca e filtros
+      description: |
+        Só produtos ativos de artesãos aprovados. Com artesaoId igual ao do artesão logado, mostra também os
+        inativos dele (painel). A vitrine pública fica em cache (cabeçalho X-Cache HIT ou MISS).
+      parameters:
+        - { name: busca, in: query, schema: { type: string }, description: "Nome do produto, do artesão ou técnica, sem diferenciar acentos." }
+        - { name: regiao, in: query, schema: { type: string } }
+        - { name: tecnica, in: query, schema: { type: string } }
+        - { name: categoria, in: query, schema: { type: string } }
+        - { name: artesaoId, in: query, schema: { type: integer } }
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Produto" } } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+    post:
+      tags: [Painel do artesão]
+      summary: Artesão publica um produto
+      description: O dono vem do login (um artesaoId no corpo é ignorado).
+      security: [{ bearer: [] }, { cookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/NovoProduto" } } } }
+      responses:
+        "201": { description: "Criado.", content: { application/json: { schema: { $ref: "#/components/schemas/Produto" } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+  /produtos/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [Catálogo]
+      summary: Um produto
+      description: Inativo ou de artesão não aprovado só aparece para o dono e o admin.
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { $ref: "#/components/schemas/Produto" } } } }
+        "404": { $ref: "#/components/responses/Erro404" }
+    put:
+      tags: [Painel do artesão]
+      summary: Artesão dono edita o produto
+      security: [{ bearer: [] }, { cookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/NovoProduto" } } } }
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { $ref: "#/components/schemas/Produto" } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+        "404": { $ref: "#/components/responses/Erro404" }
+    delete:
+      tags: [Painel do artesão]
+      summary: Artesão dono desativa o produto (exclusão lógica)
+      security: [{ bearer: [] }, { cookie: [] }]
+      responses:
+        "204": { description: "Desativado." }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+        "404": { $ref: "#/components/responses/Erro404" }
+  /artesoes:
+    get:
+      tags: [Catálogo]
+      summary: Artesãos aprovados
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Artesao" } } } } }
+  /artesoes/{id}:
+    get:
+      tags: [Catálogo]
+      summary: Perfil de um artesão
+      description: Cadastro pendente só aparece para o próprio artesão e o admin.
+      parameters: [{ $ref: "#/components/parameters/id" }]
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { $ref: "#/components/schemas/Artesao" } } } }
+        "404": { $ref: "#/components/responses/Erro404" }
+  /artesoes/eu/indicadores:
+    get:
+      tags: [Painel do artesão]
+      summary: Indicadores do artesão logado
+      security: [{ bearer: [] }, { cookie: [] }]
+      responses:
+        "200":
+          description: Só a parte dele nos pedidos, sem os cancelados.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalVendido: { type: number }
+                  totalPedidos: { type: integer }
+                  pedidosPendentes: { type: integer }
+                  produtosAtivos: { type: integer }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+
+  # ---------------------------------------------------------------- avaliações
+  /produtos/{id}/avaliacoes:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [Avaliações]
+      summary: Avaliações do produto (mais recentes primeiro)
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Avaliacao" } } } } }
+        "404": { $ref: "#/components/responses/Erro404" }
+    post:
+      tags: [Avaliações]
+      summary: Comprador avalia o produto (uma vez)
+      security: [{ bearer: [] }, { cookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/NovaAvaliacao" } } } }
+      responses:
+        "201": { description: "Criada.", content: { application/json: { schema: { $ref: "#/components/schemas/Avaliacao" } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+        "404": { $ref: "#/components/responses/Erro404" }
+        "409": { $ref: "#/components/responses/Erro409" }
+
+  # ------------------------------------------------------------------ carrinho
+  /carrinho:
+    get:
+      tags: [Carrinho]
+      summary: Carrinho do comprador logado (salvo no banco)
+      security: [{ bearer: [] }, { cookie: [] }]
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ItemCarrinho" } } } } }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+    put:
+      tags: [Carrinho]
+      summary: Substitui o carrinho inteiro (lista vazia esvazia)
+      security: [{ bearer: [] }, { cookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Itens" } } } }
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ItemCarrinho" } } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+    delete:
+      tags: [Carrinho]
+      summary: Esvazia o carrinho
+      security: [{ bearer: [] }, { cookie: [] }]
+      responses:
+        "204": { description: "Esvaziado." }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+  /carrinho/validar:
+    post:
+      tags: [Carrinho]
+      summary: Confere o estoque dos itens antes do pagamento
+      description: Não reserva nada. Lista vazia = tudo certo.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Itens" } } } }
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ProblemaEstoque" } } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+
+  # ------------------------------------------------------------------- pedidos
+  /pedidos:
+    post:
+      tags: [Pedidos]
+      summary: Checkout do comprador logado
+      description: |
+        Usa o checkout seguro do FCCPD U1. O preço vem do banco. Sem estoque, nada é gravado (409).
+        Esvazia o carrinho salvo e enfileira os avisos para comprador e artesãos.
+      security: [{ bearer: [] }, { cookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/NovoPedido" } } } }
+      responses:
+        "201": { description: "Criado.", content: { application/json: { schema: { $ref: "#/components/schemas/Pedido" } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+        "404": { $ref: "#/components/responses/Erro404" }
+        "409": { $ref: "#/components/responses/Erro409" }
+    get:
+      tags: [Pedidos]
+      summary: Pedidos conforme o perfil do login
+      description: "Comprador: os dele. Artesão: os que têm item dele. Admin: todos. Mais recentes primeiro."
+      security: [{ bearer: [] }, { cookie: [] }]
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Pedido" } } } } }
+        "401": { $ref: "#/components/responses/Erro401" }
+  /pedidos/{codigo}:
+    get:
+      tags: [Pedidos]
+      summary: Um pedido
+      security: [{ bearer: [] }, { cookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/codigo" }]
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { $ref: "#/components/schemas/Pedido" } } } }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+        "404": { $ref: "#/components/responses/Erro404" }
+  /pedidos/{codigo}/status:
+    patch:
+      tags: [Pedidos]
+      summary: Artesão com item no pedido muda o status
+      description: |
+        pendente → confirmado | cancelado; confirmado → em_producao | cancelado;
+        em_producao → enviado | cancelado; enviado → entregue. Cancelar devolve o estoque.
+      security: [{ bearer: [] }, { cookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/codigo" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: "#/components/schemas/StatusPedido" }
+            example: { status: em_producao }
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { $ref: "#/components/schemas/Pedido" } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+        "404": { $ref: "#/components/responses/Erro404" }
+
+  # ------------------------------------------------------------- recomendações
+  /recomendacoes/produtos/{id}:
+    get:
+      tags: [Recomendações]
+      summary: Peças parecidas com o produto
+      parameters: [{ $ref: "#/components/parameters/id" }, { $ref: "#/components/parameters/limite" }]
+      responses:
+        "200": { description: "Padrão de 4 itens.", content: { application/json: { schema: { $ref: "#/components/schemas/Recomendacoes" } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "404": { $ref: "#/components/responses/Erro404" }
+  /recomendacoes/eu:
+    get:
+      tags: [Recomendações]
+      summary: "\"Escolhidos para você\": pelo histórico do comprador logado"
+      security: [{ bearer: [] }, { cookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/limite" }]
+      responses:
+        "200": { description: "Padrão de 8 itens.", content: { application/json: { schema: { $ref: "#/components/schemas/Recomendacoes" } } } }
+        "400": { $ref: "#/components/responses/Erro400" }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+
+  # ------------------------------------------------------------- administração
+  /admin/indicadores:
+    get:
+      tags: [Administração]
+      summary: Indicadores do painel administrativo (vw_indicadores_admin)
+      security: [{ bearer: [] }, { cookie: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsuarios: { type: integer }
+                  produtosAtivos: { type: integer }
+                  totalPedidos: { type: integer }
+                  totalVendas: { type: number }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+  /admin/artesoes/pendentes:
+    get:
+      tags: [Administração]
+      summary: Cadastros de artesão esperando aprovação
+      security: [{ bearer: [] }, { cookie: [] }]
+      responses:
+        "200": { description: "OK", content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Artesao" } } } } }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+  /admin/artesoes/{id}/aprovar:
+    patch:
+      tags: [Administração]
+      summary: Aprova o artesão (os produtos dele entram na vitrine)
+      security: [{ bearer: [] }, { cookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/id" }]
+      responses:
+        "200": { description: "Aprovado (ou já estava).", content: { application/json: { schema: { $ref: "#/components/schemas/Artesao" } } } }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+        "404": { $ref: "#/components/responses/Erro404" }
+  /admin/artesoes/{id}:
+    delete:
+      tags: [Administração]
+      summary: Rejeita um cadastro pendente (apaga o usuário e os produtos dele)
+      security: [{ bearer: [] }, { cookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/id" }]
+      responses:
+        "204": { description: "Rejeitado." }
+        "400": { description: "O artesão já foi aprovado.", content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } } }
+        "401": { $ref: "#/components/responses/Erro401" }
+        "403": { $ref: "#/components/responses/Erro403" }
+        "404": { $ref: "#/components/responses/Erro404" }
+
+  # --------------------------------------------------------- laboratório FCCPD
+  /saude:
+    get:
+      tags: [Laboratório FCCPD]
+      summary: A API e o banco estão no ar?
+      responses:
+        "200": { description: "OK" }
+        "503": { description: "Banco fora do ar." }
+  /pedidos-naive:
+    post:
+      tags: [Laboratório FCCPD]
+      summary: Checkout INGÊNUO, com a race condition da U1 (só para o teste comparativo)
+      responses:
+        "201": { description: "Criado." }
+  /produtos/{id}/imagens:
+    post:
+      tags: [Laboratório FCCPD]
+      summary: Registra uma imagem e enfileira o processamento (fila assíncrona)
+      parameters: [{ $ref: "#/components/parameters/id" }]
+      responses:
+        "202": { description: "Na fila." }
+  /fila:
+    get:
+      tags: [Laboratório FCCPD]
+      summary: Resumo da fila de tarefas por status
+      responses:
+        "200": { description: "OK" }
+  /teste/fila:
+    post:
+      tags: [Laboratório FCCPD]
+      summary: Enfileira um lote de tarefas de teste
+      responses:
+        "202": { description: "Enfileirado." }
+  /teste/reiniciar:
+    post:
+      tags: [Laboratório FCCPD]
+      summary: Apaga pedidos e fila e recoloca o estoque (só em desenvolvimento)
+      responses:
+        "200": { description: "Reiniciado." }

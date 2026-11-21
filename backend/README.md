@@ -8,7 +8,7 @@ e o plano da U2 ([`docs/plano-u2.md`](../docs/plano-u2.md)) é implementá-lo et
 ```bash
 docker compose up -d      # PostgreSQL na porta 5434 (schema + seed automáticos)
 npm install
-npm run api               # http://localhost:3333
+npm run api               # http://localhost:3333 · documentação interativa (Swagger) em http://localhost:3333/docs
 npm test                  # testes automatizados da API (criam e apagam os próprios usuários de teste)
 ```
 
@@ -92,9 +92,11 @@ testes/
    Rota pública que mostra algo a mais ao dono: `autenticarSeHouver` (sem token ou com token
    vencido, `req.usuario` fica `null` e a rota segue como visitante).
 5. Registre o router em `src/app.js`, **antes** de `rotaNaoEncontrada`.
-6. Escreva o teste em `testes/api/<recurso>.test.js` (veja `fundacao.test.js`): caminho feliz e
+6. Documente a rota em `openapi.yaml` (ela aparece no Swagger em `/docs`). O teste
+   `testes/api/openapi.test.js` falha se existir rota no Express sem documentação, ou o contrário.
+7. Escreva o teste em `testes/api/<recurso>.test.js` (veja `fundacao.test.js`): caminho feliz e
    cada erro previsto no contrato. Se o teste criar dados, apague-os no `after()` (veja `auth.test.js`).
-7. Antes do PR: `npm test` **e**, se mexeu em checkout ou fila, a bateria do FCCPD U1 com a API no ar
+8. Antes do PR: `npm test` **e**, se mexeu em checkout ou fila, a bateria do FCCPD U1 com a API no ar
    e **nenhum** worker rodando (`npm run evidencias`). Não suba os arquivos de `evidencias/` alterados.
 
 ## Cuidados
