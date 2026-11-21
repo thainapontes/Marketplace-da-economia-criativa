@@ -4,6 +4,7 @@
 //   GET /produtos                 → Produto[]  (?busca=&regiao=&tecnica=&categoria=&artesaoId=)
 //   GET /produtos/:id             → Produto
 //   GET /produtos/:id/avaliacoes  → Avaliacao[] (mais recentes primeiro)
+//   POST /produtos/:id/avaliacoes (comprador) { nota, comentario } → 201 Avaliacao (409 na segunda)
 //   POST   /produtos              (artesão) NovoProduto → 201 Produto
 //   PUT    /produtos/:id          (artesão dono) NovoProduto → 200 Produto
 //   DELETE /produtos/:id          (artesão dono) → 204 (desativa: exclusão lógica)
@@ -21,6 +22,8 @@ rotasProdutos.get("/produtos", autenticarSeHouver, produtosController.listar);
 // Mantém id, nome, preco, estoque e status: o teste de concorrência do FCCPD U1 lê o estoque por aqui.
 rotasProdutos.get("/produtos/:id", autenticarSeHouver, produtosController.buscarPorId);
 rotasProdutos.get("/produtos/:id/avaliacoes", autenticarSeHouver, produtosController.listarAvaliacoes);
+
+rotasProdutos.post("/produtos/:id/avaliacoes", autenticar, exigirPerfil("comprador"), produtosController.criarAvaliacao);
 
 const artesao = [autenticar, exigirPerfil("artesao")];
 rotasProdutos.post("/produtos", ...artesao, produtosController.criar);

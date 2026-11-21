@@ -37,6 +37,11 @@ export const config = {
   // [U2 · C] Validade do cache da vitrine e dos filtros, em ms (0 = desligado).
   cacheTtlMs: Number(process.env.CACHE_TTL_MS ?? 30_000),
 
+  // [U2 · E.4] Módulo de IA (ia-recomendacao/). A API repassa as recomendações
+  // dele com o usuário do login; se ele não responder a tempo, usa popularidade.
+  recomendacaoUrl: (process.env.RECOMENDACAO_URL ?? "http://localhost:3001").replace(/\/+$/, ""),
+  recomendacaoTimeoutMs: Number(process.env.RECOMENDACAO_TIMEOUT_MS ?? 2000), // RF-08 / RNF-02
+
   cookieSeguro: (process.env.COOKIE_SECURE ?? (process.env.NODE_ENV === "production" ? "true" : "false")) === "true",
 };
 

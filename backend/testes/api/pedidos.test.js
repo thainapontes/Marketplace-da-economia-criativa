@@ -130,13 +130,15 @@ describe("POST /pedidos", () => {
 
   test("sem estoque: 409 e NADA muda (nem o item que tinha estoque)", async () => {
     const antes = [await estoque(t.barato), await estoque(t.escasso)];
-    const pedidosAntes = (await pool.query("SELECT count(*) FROM pedido")).rows[0].count;
+    // Só os pedidos deste comprador: os outros arquivos de teste rodam em paralelo e criam pedidos também.
+    const dele = "SELECT count(*) FROM pedido WHERE comprador_id = $1";
+    const pedidosAntes = (await pool.query(dele, [t.comprador.id])).rows[0].count;
     const r = await comprar(t.comprador.token, [{ produtoId: t.barato, quantidade: 1 }, { produtoId: t.escasso, quantidade: 3 }]);
     assert.equal(r.status, 409);
     assert.equal(r.body.erro, "ESTOQUE_INSUFICIENTE");
     assert.equal(r.body.produtoId, t.escasso);
     assert.deepEqual([await estoque(t.barato), await estoque(t.escasso)], antes);
-    assert.equal((await pool.query("SELECT count(*) FROM pedido")).rows[0].count, pedidosAntes);
+    assert.equal((await pool.query(dele, [t.comprador.id])).rows[0].count, pedidosAntes);
   });
 
   test("produto inexistente, inativo ou de artesão não aprovado: 404", async () => {

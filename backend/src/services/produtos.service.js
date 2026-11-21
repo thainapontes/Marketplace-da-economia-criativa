@@ -51,7 +51,7 @@ export async function listar(filtros, usuario) {
 }
 
 /** Produto que o usuário pode ver, ou 404. */
-async function buscarVisivel(id, usuario) {
+export async function buscarVisivel(id, usuario) {
   const produto = await produtosRepository.buscarPorId(id);
   const publico = produtosRepository.ehPublico(produto);
   if (!produto || (!publico && !ehAdmin(usuario) && !ehDono(usuario, produto.artesao_id))) {
@@ -67,6 +67,20 @@ export async function buscarPorId(id, usuario) {
 export async function listarAvaliacoes(produtoId, usuario) {
   await buscarVisivel(produtoId, usuario);
   return (await avaliacoesRepository.listarPorProduto(produtoId)).map(paraAvaliacao);
+}
+
+/**
+ * Comprador avalia um produto da vitrine (HU06). Uma avaliação por comprador
+ * por produto: a segunda dá 409. O autor vem do login (usuarioNome do token).
+ * Produto escondido (inativo ou de artesão pendente) dá 404, como em GET.
+ */
+export async function criarAvaliacao(produtoId, { nota, comentario }, usuario) {
+  await buscarVisivel(produtoId, usuario);
+  const registro = await avaliacoesRepository.criar({ produtoId, usuarioId: usuario.id, nota, comentario });
+  if (!registro) {
+    throw new ErroApi(409, "AVALIACAO_DUPLICADA", "Você já avaliou este produto.");
+  }
+  return paraAvaliacao(registro);
 }
 
 // ---------------------------------------------------------------------------

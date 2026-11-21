@@ -13,9 +13,10 @@ const INCLUDE_ARTESAO = {
   _count: { select: { produto: { where: { status: "ativo" } } } },
 };
 
-export function listar({ somenteAprovados }) {
+/** aprovado: true (vitrine), false (pendentes, para o admin) ou undefined (todos). */
+export function listar({ aprovado } = {}) {
   return prisma.artesao.findMany({
-    where: somenteAprovados ? { aprovado: true } : {},
+    where: aprovado === undefined ? {} : { aprovado },
     include: INCLUDE_ARTESAO,
     orderBy: { usuario_id: "asc" },
   });

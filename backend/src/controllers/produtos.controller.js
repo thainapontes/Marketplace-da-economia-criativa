@@ -41,6 +41,25 @@ export async function listarAvaliacoes(req, res) {
   res.json(await produtosService.listarAvaliacoes(idDaUrl(req.params.id, "Produto"), req.usuario));
 }
 
+/** Corpo { nota: 1 a 5, comentario?: texto até 1000 caracteres }. */
+function novaAvaliacao(corpo) {
+  exigirCorpo(corpo);
+  if (!Number.isInteger(corpo.nota) || corpo.nota < 1 || corpo.nota > 5) {
+    throw invalido("A nota precisa ser um número inteiro de 1 a 5.");
+  }
+  if (corpo.comentario !== undefined && typeof corpo.comentario !== "string") {
+    throw invalido("O comentário precisa ser um texto.");
+  }
+  const comentario = (corpo.comentario ?? "").trim();
+  if (comentario.length > 1000) throw invalido("O comentário aceita no máximo 1000 caracteres.");
+  return { nota: corpo.nota, comentario };
+}
+
+export async function criarAvaliacao(req, res) {
+  const id = idDaUrl(req.params.id, "Produto");
+  res.status(201).json(await produtosService.criarAvaliacao(id, novaAvaliacao(req.body), req.usuario));
+}
+
 /**
  * Corpo de NovoProduto (frontend/src/types/produto.ts):
  * { nome, descricao, preco, estoque, categoria, tecnica, regiao, imagem, artesaoId? }

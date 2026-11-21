@@ -23,6 +23,8 @@ import { rotasProdutos } from "./routes/produtos.routes.js";
 import { rotasArtesoes } from "./routes/artesoes.routes.js";
 import { rotasCarrinho } from "./routes/carrinho.routes.js";
 import { rotasPedidos } from "./routes/pedidos.routes.js";
+import { rotasAdmin } from "./routes/admin.routes.js";
+import { rotasRecomendacoes } from "./routes/recomendacoes.routes.js";
 import { rotaNaoEncontrada, tratadorDeErros } from "./middlewares/erros.js";
 
 export const app = express();
@@ -44,6 +46,8 @@ app.use(rotasProdutos);
 app.use(rotasArtesoes);
 app.use(rotasCarrinho);
 app.use(rotasPedidos);
+app.use(rotasAdmin);
+app.use(rotasRecomendacoes);
 
 app.use(rotaNaoEncontrada);
 app.use(tratadorDeErros);

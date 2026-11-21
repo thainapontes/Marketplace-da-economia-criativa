@@ -11,9 +11,9 @@ service por vez.
 - **CORS:** só as origens de `CORS_ORIGEM` (padrão `http://localhost:3000`). Em produção, incluir a URL da Vercel.
 - **Formato:** JSON (UTF-8) nos dois sentidos. Datas em ISO 8601 UTC (`2026-08-20T14:32:00.000Z`).
   Valores em reais como `number` (`285` ou `35.9`).
-- **Recomendações** não passam por aqui: são servidas pelo módulo de IA
-  (`ia-recomendacao/`, porta 3001), com contrato próprio em
-  [`docs/sdd/design.md`](sdd/design.md).
+- **Recomendações** passam pela API desde a etapa E (seção 7b): a API chama o módulo de IA
+  (`ia-recomendacao/`, porta 3001, contrato próprio em [`docs/sdd/design.md`](sdd/design.md)) com o
+  usuário do login e devolve os produtos do banco. Variável `RECOMENDACAO_URL`.
 - **Banco:** `backend/sql/01_schema.sql` (DDL da equipe) + `01b_extensoes_u2.sql`
   (colunas e tabelas acrescentadas para a U2) + `02_seed.sql` (o mesmo catálogo
   dos mocks, mesmos ids de produto). Mapeamento campo a campo na seção 9.
@@ -36,7 +36,7 @@ Para o frontend saber o que já pode trocar. As letras são as etapas de [`docs/
 | Sessão também por cookie httpOnly, `POST /auth/sair` | B | ✅ pronto |
 | `/carrinho` (salvo no banco), `/pedidos` | D | ✅ pronto |
 | `POST`/`PUT`/`DELETE /produtos`, `/artesoes/eu/indicadores`, cache | C | ✅ pronto |
-| `POST` avaliações, `/admin/*`, recomendações passando pela API | E | ⏳ |
+| `POST` avaliações, `/admin/*`, `/recomendacoes/*` (repasse da IA) | E | ✅ pronto |
 | Swagger em `/docs` | F | ⏳ |
 
 ---
@@ -229,7 +229,10 @@ Regras:
   (padrão 30 s). Toda resposta traz `X-Cache: HIT` (da memória) ou `MISS` (do banco). Criar, editar ou
   desativar produto, criar pedido e cancelar pedido limpam o cache da vitrine. O painel do artesão nunca
   usa cache. Medição: ~3,8× mais requisições por segundo com o cache ligado.
-- **Avaliação**: `usuarioNome` vem do token. Uma por comprador por produto (**409** na segunda).
+- **Avaliação**: `usuarioNome` vem do token. Uma por comprador por produto (**409** na segunda). `nota` inteira de 1 a 5;
+  `comentario` opcional, até 1000 caracteres (sem ele, vai `""`). Produto escondido da vitrine → **404**.
+  Quem decide o "uma por comprador" é a `UNIQUE (produto_id, usuario_id)` do banco: dois envios ao mesmo
+  tempo resultam em um **201** e um **409**.
 
 ## 6. Rotas — carrinho e pedidos
 
@@ -300,6 +303,36 @@ dos próprios itens), sem pedidos cancelados. `pedidosPendentes` = pedidos em `p
 `vw_indicadores_artesao`: ela soma pedidos cancelados e só conta o status `pendente` (que nenhum pedido
 novo tem, porque todos nascem `confirmado`). A correção da view está com a equipe de banco.
 
+**Administração (etapa E):** `GET /admin/indicadores` lê a `vw_indicadores_admin` como está no DDL
+(`totalUsuarios` conta todos os perfis; `totalVendas` soma `valor_total` dos pedidos não cancelados).
+Aprovar limpa o cache da vitrine, para os produtos do artesão aparecerem na hora; aprovar quem já
+está aprovado devolve **200** sem mudar nada. Rejeitar apaga numa transação os produtos do cadastro
+pendente (e as classificações, logs de recomendação e itens de carrinho que apontem para eles), as
+notificações e o usuário. O token antigo dele passa a dar **401**. Id inexistente ou de quem não é
+artesão → **404**.
+
+## 7b. Rotas — recomendações (repasse do módulo de IA)
+
+| Método e rota | Acesso | Query | Resposta |
+|---|---|---|---|
+| `GET /recomendacoes/produtos/:id` | público | `?limite=` 1–20 (padrão 4) | **200** `{ produtoReferenciaId, fonte, recomendacoes }` |
+| `GET /recomendacoes/eu` | comprador | `?limite=` 1–20 (padrão 8) | **200** `{ usuarioId, fonte, recomendacoes }` |
+
+`recomendacoes` é uma lista de `Produto` com mais dois campos, `criterio` (ex.: `mesmo-artesao`,
+`historico-tecnica`, `popularidade`) e `score`. `fonte` diz de onde veio a lista:
+
+- **`"ia"`**: a API chamou o módulo de IA (`RECOMENDACAO_URL` + `/api/produtos/:id/recomendados` ou
+  `/api/usuarios/:id/recomendados`). Ela troca os ids pelos produtos do **banco**, na ordem da IA, e tira
+  o que não está mais na vitrine e o próprio produto de referência. O usuário vai para a IA a partir do
+  **token** (no caminho e no cabeçalho `X-Usuario-Id`): um `X-Usuario-Id` mandado pelo navegador é
+  ignorado. A chamada se identifica como `X-Origem-Chamador: backend` no log de uso da IA.
+- **`"popularidade"`**: a IA caiu, respondeu erro ou algo sem sentido, ou passou de
+  `RECOMENDACAO_TIMEOUT_MS` (2 s, RF-08). A API responde mesmo assim com os mais vendidos da vitrine
+  (pedidos não cancelados), no máximo 2 por artesão (RNF-06). `score` = vendas ÷ maior venda.
+
+Produto escondido ou inexistente → **404**; `limite` fora de 1–20 → **400**; `/recomendacoes/eu` sem login
+→ **401**, e artesão ou admin → **403**.
+
 ## 8. Rotas do FCCPD U1 que continuam
 
 Não fazem parte do produto, mas ficam no ar para os testes e evidências da U1:
@@ -350,4 +383,9 @@ Campos que não são uma coluna direta:
    `pedidosService.listarPorCliente/listarPorArtesao/listarTodos` viram chamadas a `GET /pedidos`
    (o argumento passa a ser ignorado); `usuariosService.login/registrar` passam a receber
    `{ token, usuario }` e usam só o `usuario` (o token já foi para o cookie).
-3. Quando o último service for migrado, `frontend/src/mocks/` e `delay()` podem ser apagados.
+3. `recomendacoesService` passa a chamar `GET /recomendacoes/produtos/:id` e `GET /recomendacoes/eu`
+   em vez do módulo de IA direto: a variável `NEXT_PUBLIC_RECOMENDACAO_URL` e o cabeçalho
+   `X-Usuario-Id` saem do frontend, e a lista já vem com os produtos completos (não precisa mais
+   cruzar com `produtosService.listarTodos`). O cálculo local de reserva também pode sair, porque a
+   API já responde com popularidade quando a IA cai.
+4. Quando o último service for migrado, `frontend/src/mocks/` e `delay()` podem ser apagados.
