@@ -1,0 +1,15 @@
+﻿BEGIN
+DROP INDEX
+                                                 QUERY PLAN                                                  
+-------------------------------------------------------------------------------------------------------------
+ Seq Scan on produto  (cost=0.00..3542.15 rows=2130 width=141) (actual time=0.011..10.144 rows=2084 loops=1)
+   Filter: ((tecnica_id = 2) AND (regiao_id = 2))
+   Rows Removed by Filter: 97926
+   Buffers: shared hit=2042
+ Planning:
+   Buffers: shared hit=180
+ Planning Time: 1.865 ms
+ Execution Time: 10.371 ms
+(8 rows)
+
+ROLLBACK
