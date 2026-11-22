@@ -1,0 +1,15 @@
+﻿                                                            QUERY PLAN                                                             
+-----------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on produto  (cost=34.12..2188.43 rows=2130 width=141) (actual time=0.785..3.687 rows=2084 loops=1)
+   Recheck Cond: ((tecnica_id = 2) AND (regiao_id = 2))
+   Heap Blocks: exact=2042
+   Buffers: shared hit=2046
+   ->  Bitmap Index Scan on idx_produto_filtros  (cost=0.00..33.59 rows=2130 width=0) (actual time=0.478..0.479 rows=2084 loops=1)
+         Index Cond: ((tecnica_id = 2) AND (regiao_id = 2))
+         Buffers: shared hit=4
+ Planning:
+   Buffers: shared hit=206
+ Planning Time: 1.806 ms
+ Execution Time: 3.948 ms
+(11 rows)
+
