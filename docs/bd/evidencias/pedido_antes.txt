@@ -1,0 +1,15 @@
+﻿BEGIN
+DROP INDEX
+                                                QUERY PLAN                                                
+----------------------------------------------------------------------------------------------------------
+ Seq Scan on item_pedido  (cost=0.00..3422.05 rows=3 width=48) (actual time=6.278..14.329 rows=3 loops=1)
+   Filter: (pedido_id = 75003)
+   Rows Removed by Filter: 150001
+   Buffers: shared hit=1547
+ Planning:
+   Buffers: shared hit=83
+ Planning Time: 1.468 ms
+ Execution Time: 14.668 ms
+(8 rows)
+
+ROLLBACK
