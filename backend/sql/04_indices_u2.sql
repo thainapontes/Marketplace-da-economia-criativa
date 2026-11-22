@@ -29,3 +29,11 @@ CREATE INDEX idx_produto_nome_sem_acento
 -- uma fatia minúscula (cerca de 0,1% com 1000 artesãos).
 CREATE INDEX idx_produto_artesao ON produto (artesao_id);
 
+-- idx_item_pedido_pedido: índice na FK item_pedido.pedido_id.
+-- Por quê: "os itens de um pedido" (WHERE pedido_id = ?) é a consulta natural
+-- desta tabela, e o Postgres NÃO cria índice sozinho em FK. Sem ele, cada
+-- consulta lê a tabela inteira (Seq Scan) para devolver poucas linhas.
+-- Também ajuda o ON DELETE CASCADE: ao apagar um pedido, o banco precisa
+-- achar os itens dele.
+CREATE INDEX idx_item_pedido_pedido ON item_pedido (pedido_id);
+
