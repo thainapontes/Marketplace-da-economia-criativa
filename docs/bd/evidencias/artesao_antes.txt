@@ -1,0 +1,15 @@
+﻿BEGIN
+DROP INDEX
+                                               QUERY PLAN                                                
+---------------------------------------------------------------------------------------------------------
+ Seq Scan on produto  (cost=0.00..3292.12 rows=99 width=141) (actual time=0.060..8.227 rows=100 loops=1)
+   Filter: (artesao_id = 500)
+   Rows Removed by Filter: 99910
+   Buffers: shared hit=2042
+ Planning:
+   Buffers: shared hit=177
+ Planning Time: 1.625 ms
+ Execution Time: 8.346 ms
+(8 rows)
+
+ROLLBACK
