@@ -1,0 +1,31 @@
+﻿BEGIN
+                                                  QUERY PLAN                                                  
+--------------------------------------------------------------------------------------------------------------
+ Seq Scan on produto  (cost=0.00..3292.12 rows=25203 width=141) (actual time=0.009..8.801 rows=25004 loops=1)
+   Filter: (regiao_id = 2)
+   Rows Removed by Filter: 75006
+   Buffers: shared hit=2042
+ Planning:
+   Buffers: shared hit=204 dirtied=5
+ Planning Time: 1.847 ms
+ Execution Time: 10.270 ms
+(8 rows)
+
+CREATE INDEX
+ANALYZE
+                                                            QUERY PLAN                                                             
+-----------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on produto  (cost=281.44..2634.96 rows=24922 width=141) (actual time=2.099..7.210 rows=25004 loops=1)
+   Recheck Cond: (regiao_id = 2)
+   Heap Blocks: exact=2042
+   Buffers: shared hit=2042 read=23
+   ->  Bitmap Index Scan on idx_teste_regiao  (cost=0.00..275.21 rows=24922 width=0) (actual time=1.508..1.508 rows=25004 loops=1)
+         Index Cond: (regiao_id = 2)
+         Buffers: shared read=23
+ Planning:
+   Buffers: shared hit=44 read=1
+ Planning Time: 0.774 ms
+ Execution Time: 8.751 ms
+(11 rows)
+
+ROLLBACK
