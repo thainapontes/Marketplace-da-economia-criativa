@@ -1,0 +1,15 @@
+﻿                                                          QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on item_pedido  (cost=4.44..16.08 rows=3 width=48) (actual time=0.166..0.183 rows=3 loops=1)
+   Recheck Cond: (pedido_id = 75003)
+   Heap Blocks: exact=2
+   Buffers: shared hit=8
+   ->  Bitmap Index Scan on idx_item_pedido_pedido  (cost=0.00..4.44 rows=3 width=0) (actual time=0.140..0.140 rows=3 loops=1)
+         Index Cond: (pedido_id = 75003)
+         Buffers: shared hit=6
+ Planning:
+   Buffers: shared hit=104
+ Planning Time: 1.189 ms
+ Execution Time: 0.357 ms
+(11 rows)
+
