@@ -1,0 +1,5 @@
+-- 10_carga_benchmark.sql
+-- Carga SINTÉTICA para o benchmark de índices da U2 (etapa BD.1).
+-- NÃO fica em backend/sql/ de propósito: o Docker só roda arquivos dessa
+-- pasta (sem subpastas), e estes dados de teste não podem aparecer na vitrine.
+-- Todos os e-mails terminam em @carga.origem.invalid (nenhum dado de pessoa real).
