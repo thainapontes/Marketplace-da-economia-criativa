@@ -1,0 +1,15 @@
+﻿                                                          QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on produto  (cost=5.06..330.87 rows=99 width=141) (actual time=0.057..0.486 rows=100 loops=1)
+   Recheck Cond: (artesao_id = 500)
+   Heap Blocks: exact=100
+   Buffers: shared hit=105
+   ->  Bitmap Index Scan on idx_produto_artesao  (cost=0.00..5.04 rows=99 width=0) (actual time=0.036..0.036 rows=100 loops=1)
+         Index Cond: (artesao_id = 500)
+         Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=203
+ Planning Time: 1.637 ms
+ Execution Time: 0.630 ms
+(11 rows)
+
