@@ -21,3 +21,11 @@ AS $$ SELECT public.unaccent('public.unaccent', $1) $$;
 -- Observação: o trigram só ajuda com termos de 3 letras ou mais.
 CREATE INDEX idx_produto_nome_sem_acento
     ON produto USING gin (f_unaccent(nome) gin_trgm_ops);
+
+-- idx_produto_artesao: índice na FK produto.artesao_id.
+-- Por quê: o painel do artesão lista os produtos de UM artesão
+-- (WHERE artesao_id = ?), e o Postgres NÃO cria índice sozinho em FK.
+-- Sem ele, cada consulta lê a tabela inteira (Seq Scan) para devolver
+-- uma fatia minúscula (cerca de 0,1% com 1000 artesãos).
+CREATE INDEX idx_produto_artesao ON produto (artesao_id);
+
