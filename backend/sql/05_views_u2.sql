@@ -19,3 +19,42 @@ SELECT ip.artesao_id,
   FROM item_pedido ip
   JOIN pedido p ON p.id = ip.pedido_id
  GROUP BY ip.artesao_id;
+
+ -- vw_vitrine_produto (NOVA).
+-- Consulta recorrente do site: produto publico (ativo, de artesao aprovado)
+-- junto com o nome do artesao, da categoria, da tecnica, da regiao e a imagem
+-- principal. Espelha INCLUDE_PRODUTO e ehPublico de
+-- backend/src/repositories/produtos.repository.js.
+-- Os ids de tecnica, regiao e categoria ficam na view para o filtro usar o
+-- indice idx_produto_filtros.
+-- imagem_principal: primeira foto 'disponivel' (ordem, depois id), como no site.
+CREATE VIEW vw_vitrine_produto AS
+SELECT p.id,
+       p.nome,
+       p.descricao,
+       p.preco,
+       p.preco_original,
+       p.estoque,
+       p.criado_em,
+       p.artesao_id,
+       u.nome AS artesao_nome,
+       p.tecnica_id,
+       t.nome AS tecnica,
+       p.regiao_id,
+       r.nome AS regiao,
+       p.categoria_id,
+       c.nome AS categoria,
+       (SELECT pi.chave_armazenamento
+          FROM produto_imagem pi
+         WHERE pi.produto_id = p.id
+           AND pi.status = 'disponivel'
+         ORDER BY pi.ordem, pi.id
+         LIMIT 1) AS imagem_principal
+  FROM produto p
+  JOIN artesao a   ON a.usuario_id = p.artesao_id
+  JOIN usuario u   ON u.id = a.usuario_id
+  JOIN tecnica t   ON t.id = p.tecnica_id
+  JOIN regiao r    ON r.id = p.regiao_id
+  JOIN categoria c ON c.id = p.categoria_id
+ WHERE p.status = 'ativo'
+   AND a.aprovado = true;
