@@ -7,7 +7,7 @@
 -- 1) Artesãos sintéticos: 1000 usuários com perfil 'artesao'.
 -- O e-mail é único (regra UNIQUE) e termina em @carga.origem.invalid.
 INSERT INTO usuario (nome, email, senha_hash, perfil)
-SELECT 'Artesão de carga ' || i,
+SELECT 'Artesao de carga ' || i,
        'artesao' || i || '@carga.origem.invalid',
        'hash-falso-nao-e-senha',
        'artesao'::perfil_usuario
@@ -16,7 +16,7 @@ FROM generate_series(1, 1000) AS i;
 -- 2) Cada usuário vira artesão (aprovado = true, senão a vitrine esconde).
 -- A região do artesão cicla entre 1 e 4.
 INSERT INTO artesao (usuario_id, nome_atelie, regiao_id, aprovado)
-SELECT id, 'Ateliê de carga ' || id, (id % 4) + 1, true
+SELECT id, 'Atelie de carga ' || id, (id % 4) + 1, true
 FROM usuario
 WHERE email LIKE '%@carga.origem.invalid';
 
@@ -37,8 +37,8 @@ SELECT art.usuario_id,
        ((n / 48) % 4) + 1,
        (n % 12) + 1,
        ((n / 12) % 4) + 1,
-       'Peça de carga ' || n,
-       'Produto sintético número ' || n || ' para o benchmark.',
+       'Peca de carga ' || n,
+       'Produto sintetico numero ' || n || ' para o benchmark.',
        round((10 + (n * 37 % 49000) / 100.0)::numeric, 2),
        n % 50,
        CASE WHEN n % 20 = 0 THEN 'inativo'::status_produto
