@@ -80,6 +80,27 @@ ver o teste falhar), reexecutou a bateria do FCCPD U1 a cada etapa e redigiu os 
 e as atualizações do Plano de Testes. A ordem das etapas, as escolhas de stack (Prisma, cookie,
 carrinho no banco, cache em memória) e o merge de cada pull request foram decisões da equipe.
 
+## 5.1. Claude (Anthropic), no chat — banco de dados da Unidade 2 (BD)
+
+Na frente de Modelagem e Projeto de Banco de Dados da U2, o **Claude**, usado pelo chat (e não pelo
+Claude Code), acompanhou a aluna passo a passo: explicou os conceitos (índice, FK, `CHECK`, `UNIQUE`,
+view, plano de execução) e **redigiu os rascunhos** de `backend/sql/04_indices_u2.sql`,
+`05_views_u2.sql`, dos scripts de `backend/sql/bd-u2/` (cargas, testes de integridade e de views,
+proposta de busca reescrita) e de `docs/bd/README.md`. A IA não teve acesso ao repositório nem ao
+banco: a aluna executou **todos** os comandos na própria máquina.
+
+**Como o trabalho foi conferido:** nenhum número foi estimado. Cada índice e cada view foi testado
+dentro de transação com `ROLLBACK` antes de ser gravado, e cada ganho foi medido com
+`EXPLAIN (ANALYZE, BUFFERS)` (5 execuções, 1ª descartada, mediana), com as saídas em
+`docs/bd/evidencias/`. Previsões da IA que a medição **não confirmou** foram corrigidas na hora:
+o índice só de região foi usado pelo planejador (a IA esperava que não fosse); a contagem da vitrine
+deu 95.011 dentro do teste (previsão: 95.010, por causa do produto de teste criado na transação);
+e a carga inicial gravou `??` no lugar de letras acentuadas (corrompidas pelo PowerShell), o que foi
+detectado comparando letras e bytes e corrigido removendo os acentos dos textos de carga.
+
+**O que ficou com a equipe:** a revisão no pull request, o merge e a aplicação no `src/` da busca
+reescrita (do dono do backend), e a aplicação dos arquivos no banco de produção.
+
 ## 6. Outras ferramentas
 
 **ChatGPT, Gemini e GitHub Copilot** foram utilizados na entrega de FCCPD como apoio de
