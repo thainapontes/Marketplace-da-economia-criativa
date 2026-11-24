@@ -10,6 +10,25 @@
 
 ---
 
+## Andamento
+
+| Etapa | Situação | Commit |
+|---|---|---|
+| P0 | ✅ plano | `426e482` |
+| P1 | ✅ Dockerfiles da API e do worker, da IA e do front; `compose.yaml` na raiz com `mem_limit` e healthchecks | este |
+
+**Validação da P1, em 24/11:** build das 3 imagens; `docker compose up -d` com os 5 serviços no ar, os 4 healthchecks
+`healthy` e nenhum reinício; site em `localhost:3000`; catálogo, login e recomendações com fonte "ia" pelo rewrite
+`/api` do front; pedido criado com status 201 e os 2 avisos consumidos pelo worker no container dele. Uso de memória
+entre 5% e 23% do limite de cada serviço.
+
+**Aprendizados para as próximas etapas:**
+- No Podman sem root, o build precisa de `DOCKER_BUILDKIT=0`.
+- Containers criados pela API do Podman herdam `oom_score_adj` 200 e o `exec` dos healthchecks falha. Com 300 funciona, e isso está no `compose.yaml`.
+- `docker stats` pelo Podman corta o primeiro caractere do nome, "rigem-api-1". O coletor da P4 deve usar a API pelo socket, e não a saída do CLI.
+
+---
+
 ## 1. Ponto de partida
 
 Em 24/11 o PI 3 está em **cerca de 7%**. Quase tudo o que já existe vem do próprio Origem, não de trabalho feito para este PI.

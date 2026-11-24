@@ -1,0 +1,122 @@
+# ============================================================================
+# Origem completo em containers (PI 3 · AED + Infraestrutura de Software · P1)
+#
+#   docker compose up -d --build     sobe tudo; o site abre em http://localhost:3000
+#   docker compose ps                status e saúde de cada serviço
+#   docker compose down              derruba (os dados ficam no volume)
+#   docker compose down -v           derruba e apaga o banco (o seed roda de novo)
+#
+# No Podman sem root (Fedora, Bazzite), construa com o builder clássico: o
+# BuildKit tenta subir um container próprio e falha.
+#   DOCKER_BUILDKIT=0 docker compose up -d --build
+#
+# O backend/docker-compose.yml continua valendo para quem quer só o banco.
+# Este arquivo NÃO publica o Postgres na máquina: só os outros containers o
+# enxergam, então ele não colide com o banco de desenvolvimento (porta 5434).
+#
+# mem_limit: todo serviço tem limite de memória. O monitor (P3/P4) compara o
+# uso com o limite, gera alertas de memória e registra quando o OOM Killer age.
+# ============================================================================
+
+name: origem
+
+x-banco: &banco
+  DATABASE_URL: postgres://origem:origem@postgres:5432/origem
+
+# oom_score_adj acima de 200: no Podman sem root (Fedora, Bazzite) os containers
+# herdam 200 do serviço do usuário, e o `exec` que roda os healthchecks falha ao
+# regravar esse valor. Com 300 ele funciona. O efeito colateral é proposital:
+# se a MÁQUINA ficar sem memória, o OOM Killer prefere matar um container a um
+# processo do sistema. Dentro do limite de cada container (mem_limit) nada muda.
+x-oom: &oom 300
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: origem
+      POSTGRES_PASSWORD: origem
+      POSTGRES_DB: origem
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Na primeira subida (volume vazio) roda schema, extensões, seed e fila.
+      - ./backend/sql:/docker-entrypoint-initdb.d:ro,z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U origem -d origem"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+    oom_score_adj: *oom
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    image: origem-api
+    environment:
+      <<: *banco
+      # Segredo só para este ambiente local de demonstração.
+      JWT_SECRET: origem-compose-local-nao-usar-em-producao
+      CORS_ORIGEM: http://localhost:3000
+      # http://localhost: o cookie de sessão não pode exigir HTTPS aqui.
+      COOKIE_SECURE: "false"
+      RECOMENDACAO_URL: http://ia:3001
+      # O worker roda no container próprio abaixo.
+      WORKER_EMBUTIDO: "false"
+    ports:
+      - "3333:3333"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 256m
+    oom_score_adj: *oom
+    restart: unless-stopped
+
+  worker:
+    image: origem-api
+    command: ["node", "src/worker.js"]
+    environment:
+      <<: *banco
+    # A imagem traz o healthcheck da API, que não vale para o worker.
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    mem_limit: 128m
+    oom_score_adj: *oom
+    restart: unless-stopped
+
+  ia:
+    build: ./ia-recomendacao
+    image: origem-ia
+    environment:
+      <<: *banco
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 768m
+    oom_score_adj: *oom
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://api:3333
+    image: origem-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 512m
+    oom_score_adj: *oom
+    restart: unless-stopped
+
+volumes:
+  pgdata:
