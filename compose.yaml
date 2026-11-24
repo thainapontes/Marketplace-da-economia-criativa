@@ -11,6 +11,14 @@
 # BuildKit tenta subir um container próprio e falha.
 #   DOCKER_BUILDKIT=0 docker compose up -d --build
 #
+# O coletor lê os containers pela API do Docker, pelo socket. No Podman sem
+# root o socket fica em outro lugar: crie um .env na raiz (ignorado pelo git) com
+#   SOCKET_DOCKER=/run/user/1000/podman/podman.sock
+# e ligue o socket uma vez com: systemctl --user enable --now podman.socket
+#
+# Demonstração do OOM Killer (perfil "demo", não sobe com o resto):
+#   docker compose --profile demo up estressor
+#
 # O backend/docker-compose.yml continua valendo para quem quer só o banco.
 # Este arquivo NÃO publica o Postgres na máquina: só os outros containers o
 # enxergam, então ele não colide com o banco de desenvolvimento (porta 5434).
@@ -130,12 +138,20 @@ services:
     environment:
       PROC: /host/proc
       RAIZ: /host/root
+      SOCKET_DOCKER: /var/run/docker.sock
+      PROJETO_COMPOSE: origem
+      SERVICOS: api=http://api:3333/saude,ia=http://ia:3001/healthz,frontend=http://frontend:3000/,painel=http://painel:8080/saude
+      ARQUIVO_EVENTOS: /dados/eventos.jsonl
     volumes:
       # O /proc e a raiz da MÁQUINA, somente leitura: o coletor mede o host,
       # não o próprio container. Nunca use :z aqui (reetiquetaria o sistema
       # inteiro no SELinux); por isso o rótulo é desligado só neste serviço.
       - /proc:/host/proc:ro
       - /:/host/root:ro
+      # API do Docker (ou do Podman), só para LER containers e estatísticas.
+      - ${SOCKET_DOCKER:-/var/run/docker.sock}:/var/run/docker.sock
+      # Eventos e alertas em JSONL, preservados entre reinícios.
+      - eventos:/dados
     security_opt:
       - label=disable
     mem_limit: 128m
@@ -157,5 +173,24 @@ services:
     oom_score_adj: *oom
     restart: unless-stopped
 
+  # Demonstração: aloca memória até o OOM Killer matar o processo (código 137).
+  # restart "no" para o container ficar parado e marcado como OOMKilled.
+  estressor:
+    image: origem-monitor
+    profiles: ["demo"]
+    # O Python do ambiente direto, sem o `uv run`: o uv sozinho já passaria de 64 MB.
+    command: ["/app/monitor/.venv/bin/python", "-m", "monitor.estressor"]
+    environment:
+      # 1 MB a cada 0,5 s: o coletor, que lê a cada 3 s, vê a memória passar de 80% e de 95% antes do OOM.
+      BLOCO_MB: "1"
+      PAUSA_S: "0.5"
+    healthcheck:
+      disable: true
+    mem_limit: 64m
+    memswap_limit: 64m
+    oom_score_adj: *oom
+    restart: "no"
+
 volumes:
   pgdata:
+  eventos:

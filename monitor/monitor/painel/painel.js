@@ -60,13 +60,68 @@ function desenharHardware({ ultimo: a, historico: h }) {
   $("instante").textContent = new Date(a.instante * 1000).toLocaleTimeString("pt-BR");
 }
 
+function selo(texto, classe) { return `<span class="selo ${classe}">${texto}</span>`; }
+function escapar(t) { return String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+function desenharContainers({ ultimo: lista }) {
+  const rodando = lista.filter((c) => c.status === "running").length;
+  $("containers-resumo").textContent = `${rodando} de ${lista.length} rodando`;
+  $("containers").innerHTML = lista.map((c) => {
+    const status = selo(c.status, c.status === "running" ? "ok" : c.oom_killed ? "critico" : "atencao");
+    const health = c.health ? selo(c.health, c.health === "healthy" ? "ok" : c.health === "starting" ? "" : "critico") : `<small>sem healthcheck</small>`;
+    const mem = c.memoria_limite
+      ? `<div class="mem-celula"><span>${bytes(c.memoria_uso)} / ${bytes(c.memoria_limite)}</span><small>${c.memoria_percentual.toFixed(0)}%</small>
+           <div class="barra"><span class="${nivel(c.memoria_percentual)}" style="width:${Math.min(100, c.memoria_percentual)}%"></span></div></div>`
+      : `<small>—</small>`;
+    const oom = c.oom_killed ? selo(`OOMKilled · ${c.codigo_saida}`, "critico") : `<small>não</small>`;
+    return `<tr><td><strong>${escapar(c.nome)}</strong><br><small>${escapar(c.container)}</small></td><td>${status}</td><td>${health}</td>
+      <td class="num">${c.cpu.toFixed(1)}%</td><td>${mem}</td><td class="num">${c.reinicios}</td><td>${oom}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="nota">nenhum container do projeto</td></tr>`;
+}
+
+const latencias = {};  // serviço → últimas latências, para o mini-gráfico
+function desenharServicos({ ultimo: lista, historico: h }) {
+  for (const s of lista) latencias[s.nome] = h.map((amostra) => (amostra.find((x) => x.nome === s.nome) || {}).latencia_ms ?? 0);
+  $("servicos").innerHTML = lista.map((s) => {
+    const maior = Math.max(...latencias[s.nome], 1);
+    const pontos = latencias[s.nome];
+    const n = Math.max(pontos.length - 1, 1);
+    const linha = pontos.map((v, i) => `${(i / n) * 300},${58 - (v / maior) * 54}`).join(" ");
+    return `<article class="cartao servico">
+      <header><h2>${escapar(s.nome)}</h2>${s.ok ? selo("no ar", "ok") : selo("fora do ar", "critico")}</header>
+      <p class="url">${escapar(s.url)}</p>
+      <dl class="dados">
+        <dt>Tempo de resposta</dt><dd>${s.latencia_ms.toFixed(0)} ms</dd>
+        <dt>HTTP</dt><dd>${s.status_http ?? escapar(s.erro)}</dd>
+        <dt>No ar há</dt><dd>${s.ok ? duracao(s.no_ar_ha_s) : "—"}</dd>
+        <dt>Disponibilidade</dt><dd>${s.disponibilidade.toFixed(1)}%</dd>
+      </dl>
+      <svg class="historico" viewBox="0 0 300 60" preserveAspectRatio="none" aria-label="Histórico do tempo de resposta">
+        <polyline points="${linha}"/></svg>
+    </article>`;
+  }).join("");
+}
+
+function desenharEventos(lista, contagem) {
+  const nomes = { info: "info", atencao: "atenção", critico: "crítico" };
+  $("eventos-contagem").textContent = Object.entries(contagem).map(([k, v]) => `${v} ${nomes[k] ?? k}`).join(" · ");
+  $("eventos").innerHTML = lista.map((e) => `<li>
+      <span class="quando">${new Date(e.instante * 1000).toLocaleTimeString("pt-BR")}</span>
+      <span>${selo(nomes[e.severidade] ?? e.severidade, e.severidade === "info" ? "" : e.severidade)}</span>
+      <span><span class="origem">${escapar(e.nivel)}/${escapar(e.origem)}</span> · ${escapar(e.mensagem)}</span></li>`).join("")
+    || `<li class="nota">nenhum evento ainda</li>`;
+}
+
 function desenharColetor(c) {
   const vivas = Object.entries(c.threads).filter(([, viva]) => viva).length;
   const total = Object.keys(c.threads).length;
   const el = $("coletor");
   el.classList.toggle("erro", vivas < total);
+  const amostras = c.amostras_hardware + c.amostras_containers + c.amostras_servicos;
+  const graves = (c.eventos.atencao ?? 0) + (c.eventos.critico ?? 0);
   el.innerHTML = `<span class="ponto"></span>${vivas}/${total} threads ativas · buffer ${c.buffer_ocupado}/${c.buffer_capacidade}`
-    + ` · ${c.amostras_hardware} amostras · ${c.amostras_perdidas} perdidas`;
+    + ` · ${amostras} amostras · ${c.amostras_perdidas} perdidas`
+    + (graves ? `<span class="alertas">${selo(`${graves} alertas`, c.eventos.critico ? "critico" : "atencao")}</span>` : "");
 }
 
 // ------------------------------------------------------------- atualizar
@@ -78,9 +133,15 @@ async function buscar(caminho) {
 
 async function atualizar() {
   try {
-    const [coletor, hardware] = await Promise.all([buscar("coletor"), buscar("nivel/hardware")]);
+    const [coletor, hardware, eventos] = await Promise.all([buscar("coletor"), buscar("nivel/hardware"), buscar("eventos?limite=100")]);
     desenharColetor(coletor);
     desenharHardware(hardware);
+    desenharEventos(eventos, coletor.eventos);
+    // Containers e serviços podem ainda não ter a 1ª amostra (404): não derrubam a tela 1.
+    await Promise.all([
+      buscar("nivel/containers").then(desenharContainers).catch(() => {}),
+      buscar("nivel/servicos").then(desenharServicos).catch(() => {}),
+    ]);
   } catch (erro) {
     const el = $("coletor");
     el.classList.add("erro");

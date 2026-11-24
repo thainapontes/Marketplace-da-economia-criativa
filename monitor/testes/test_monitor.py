@@ -49,6 +49,8 @@ class ComProcFalso(unittest.TestCase):
         os.environ["INTERVALO_HARDWARE"] = "0.05"
         os.environ["HISTORICO"] = "5"
         os.environ["BUFFER"] = "4"
+        os.environ["MONITORAR_CONTAINERS"] = "0"  # têm testes próprios em test_p4.py
+        os.environ["MONITORAR_SERVICOS"] = "0"
         import monitor.proc
         import monitor.coletor
         self.proc = importlib.reload(monitor.proc)

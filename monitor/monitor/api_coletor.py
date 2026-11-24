@@ -38,6 +38,11 @@ def situacao_do_coletor():
     return para_json(coletor.situacao())
 
 
+@app.get("/eventos")
+def eventos(limite: int = 100):
+    return para_json(coletor.eventos.recentes(max(1, min(limite, 500))))
+
+
 @app.get("/nivel/{nivel}")
 def nivel(nivel: str):
     ultimo = coletor.estado.ultimo(nivel)

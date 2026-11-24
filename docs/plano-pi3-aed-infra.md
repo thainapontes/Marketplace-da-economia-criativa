@@ -17,7 +17,8 @@
 | P0 | ✅ plano | `426e482` |
 | P1 | ✅ Dockerfiles da API e do worker, da IA e do front; `compose.yaml` na raiz com `mem_limit` e healthchecks | `23f17ed` |
 | P2 | ✅ `estruturas/`: Vetor fixo, lista, pilha, fila, fila circular thread-safe, tabela hash e árvore binária de busca, com 32 testes | `f0801e3` |
-| P3 | ✅ `monitor/`: coletor com a thread de hardware e a consumidora sobre a FilaCircular, API do coletor, painel com a tela 1; serviços `coletor` e `painel` no Compose | este |
+| P3 | ✅ `monitor/`: coletor com a thread de hardware e a consumidora sobre a FilaCircular, API do coletor, painel com a tela 1; serviços `coletor` e `painel` no Compose | `0f7b983` |
+| P4 | ✅ threads de containers, pela API do Docker, e de serviços, por health check; eventos e alertas de memória com histerese, OOM, reinícios e quedas, gravados em JSONL; `estressor` para a demonstração de OOM; telas 2 e 3 | este |
 
 **Validação da P1, em 24/11:** build das 3 imagens; `docker compose up -d` com os 5 serviços no ar, os 4 healthchecks
 `healthy` e nenhum reinício; site em `localhost:3000`; catálogo, login e recomendações com fonte "ia" pelo rewrite
@@ -49,6 +50,21 @@ Playwright, sem erros de JavaScript.
 - O coletor lê o `/proc` e a raiz da máquina montados somente leitura, com `security_opt: label=disable` só nele, nunca `:z`.
 - No Bazzite a raiz `/` é uma imagem somente leitura e o disco real aparece em vários pontos; o coletor escolhe um
   ponto por dispositivo, com preferência por `/`, `/var` e `/home`.
+
+**Validação da P4, em 24/11:** 18 testes do monitor, com um cliente Docker falso, um servidor HTTP local e as regras de
+alerta: memória com histerese, OOM, reinício, health, queda, volta e lentidão. No Compose, as 4 threads do coletor
+ficam vivas, sem amostras perdidas, e a memória de cada container bate com o `podman stats`. Dois cenários ao vivo:
+- **Serviço caindo:** `docker compose stop ia` gera "status: running → exited" e "caiu"; `start ia` gera "voltou (7 ms)".
+- **OOM Killer:** `docker compose --profile demo up -d estressor` gera, em ordem, "memória alta: 80%", "memória crítica:
+  99%", "status: running → exited" e "morto pelo OOM Killer (limite de 64 MB, código 137)"; o container fica
+  `OOMKilled=true`, código 137.
+
+Os eventos também ficam em `/dados/eventos.jsonl`, num volume, e sobrevivem ao reinício do coletor. A validação achou
+três bugs antes do commit: o painel descartava a query string ao repassar para o coletor; o `uv run` sozinho passava de
+64 MB e o estressor morria antes de ser visto; e um container morto gerava "memória normalizou: 0%".
+
+- No Podman sem root, o socket fica em `/run/user/1000/podman/podman.sock`; um `.env` local, ignorado pelo git, aponta
+  `SOCKET_DOCKER` para ele.
 
 ---
 

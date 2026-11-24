@@ -9,7 +9,7 @@ import pathlib
 import urllib.error
 import urllib.request
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
 COLETOR_URL = os.environ.get("COLETOR_URL", "http://coletor:8001").rstrip("/")
@@ -24,9 +24,10 @@ def saude():
 
 
 @app.get("/api/{caminho:path}")
-def repassar(caminho: str):
+def repassar(caminho: str, request: Request):
+    consulta = f"?{request.url.query}" if request.url.query else ""  # ex.: eventos?limite=10
     try:
-        with urllib.request.urlopen(f"{COLETOR_URL}/{caminho}", timeout=3) as r:
+        with urllib.request.urlopen(f"{COLETOR_URL}/{caminho}{consulta}", timeout=3) as r:
             return Response(r.read(), status_code=r.status, media_type="application/json")
     except urllib.error.HTTPError as erro:
         return Response(erro.read(), status_code=erro.code, media_type="application/json")

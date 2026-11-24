@@ -10,7 +10,8 @@
   pode travar porque o consumidor atrasou).
 - A thread consumidora retira as amostras na ordem de chegada e atualiza o
   Estado, que é o que a API do coletor serve ao painel.
-- Na P3 só existe a produtora de hardware; containers e serviços entram na P4.
+- A consumidora também passa cada amostra pelo AnalisadorDeAlertas, que gera
+  os eventos (memória alta, OOM, reinício, serviço caiu...) — ver eventos.py.
 """
 
 import os
@@ -20,11 +21,17 @@ import traceback
 
 from estruturas import EstruturaCheiaError, EstruturaVaziaError, FilaCircular, TabelaHash
 
-from . import proc
+from . import proc, servicos
+from .containers import MedidorDeContainers
+from .eventos import INFO, AnalisadorDeAlertas, Evento, RegistroDeEventos
 
 CAPACIDADE_DO_BUFFER = int(os.environ.get("BUFFER", 64))
 TAMANHO_DO_HISTORICO = int(os.environ.get("HISTORICO", 120))  # amostras guardadas por nível
 INTERVALO_HARDWARE = float(os.environ.get("INTERVALO_HARDWARE", 2))
+INTERVALO_CONTAINERS = float(os.environ.get("INTERVALO_CONTAINERS", 3))
+INTERVALO_SERVICOS = float(os.environ.get("INTERVALO_SERVICOS", 3))
+MONITORAR_CONTAINERS = os.environ.get("MONITORAR_CONTAINERS", "1") == "1"
+MONITORAR_SERVICOS = os.environ.get("MONITORAR_SERVICOS", "1") == "1"
 
 
 class Amostra:
@@ -82,6 +89,12 @@ class Coletor:
         self._trava_contadores = threading.Lock()
         self._perdidas = 0
         self._erros = 0
+        self.eventos = RegistroDeEventos()
+        self._analisador = AnalisadorDeAlertas(self.eventos)
+        self._medidor_containers = MedidorDeContainers()
+        # Só a thread consumidora mexe nestas duas: serviço → instante em que ficou no ar / (ok, total).
+        self._no_ar_desde = TabelaHash()
+        self._checagens = TabelaHash()
 
     # ------------------------------------------------------------ produtores
     def _produzir(self, nivel: str, intervalo: float, medir) -> None:
@@ -114,12 +127,42 @@ class Coletor:
         return medir
 
     # ------------------------------------------------------------ consumidor
+    def _completar_servicos(self, lista) -> None:
+        """Acrescenta a cada serviço o tempo no ar e a disponibilidade desde que o monitor começou."""
+        agora = time.time()
+        for s in lista:
+            nome = s["nome"]
+            ok, total = self._checagens.obter(nome, (0, 0))
+            self._checagens.colocar(nome, (ok + (1 if s["ok"] else 0), total + 1))
+            if s["ok"]:
+                if nome not in self._no_ar_desde:
+                    self._no_ar_desde.colocar(nome, agora)
+                s.colocar("no_ar_ha_s", int(agora - self._no_ar_desde[nome]))
+            else:
+                if nome in self._no_ar_desde:
+                    self._no_ar_desde.remover(nome)
+                s.colocar("no_ar_ha_s", 0)
+            ok, total = self._checagens[nome]
+            s.colocar("disponibilidade", round(100 * ok / total, 1))
+
     def _consumir(self) -> None:
+        analisar = TabelaHash()
+        analisar.colocar("hardware", self._analisador.hardware)
+        analisar.colocar("containers", self._analisador.containers)
+        analisar.colocar("servicos", self._analisador.servicos)
         while not self._parar.is_set():
             try:
                 amostra = self.buffer.retirar(timeout=0.5)
             except EstruturaVaziaError:
                 continue
+            try:
+                if amostra.nivel == "servicos":
+                    self._completar_servicos(amostra.dados)
+                analisar[amostra.nivel](amostra.dados)
+            except Exception:  # um erro na análise não pode parar o consumo
+                with self._trava_contadores:
+                    self._erros += 1
+                traceback.print_exc()
             self.estado.registrar(amostra)
 
     # ---------------------------------------------------------------- ciclo
@@ -129,8 +172,16 @@ class Coletor:
         t.start()
 
     def iniciar(self) -> None:
+        self.eventos.registrar(Evento("monitor", INFO, "coletor", "monitor iniciado"))
         self._iniciar_thread("consumidor", self._consumir)
         self._iniciar_thread("hardware", self._produzir, "hardware", INTERVALO_HARDWARE, self._medidor_de_hardware())
+        if MONITORAR_CONTAINERS:
+            self._iniciar_thread("containers", self._produzir, "containers", INTERVALO_CONTAINERS,
+                                 self._medidor_containers.medir)
+        if MONITORAR_SERVICOS:
+            lista = servicos.lista_de_servicos()
+            self._iniciar_thread("servicos", self._produzir, "servicos", INTERVALO_SERVICOS,
+                                 lambda: servicos.medir(lista))
 
     def parar(self, espera: float = 5) -> None:
         self._parar.set()
@@ -150,5 +201,7 @@ class Coletor:
         with self._trava_contadores:
             s.colocar("amostras_perdidas", self._perdidas)
             s.colocar("erros_de_medicao", self._erros)
-        s.colocar("amostras_hardware", self.estado.recebidas("hardware"))
+        for nivel in ("hardware", "containers", "servicos"):
+            s.colocar(f"amostras_{nivel}", self.estado.recebidas(nivel))
+        s.colocar("eventos", self.eventos.contagem())
         return s

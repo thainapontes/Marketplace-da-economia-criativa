@@ -10,7 +10,7 @@
   <header class="topo">
     <div>
       <h1>Monitor do Origem</h1>
-      <p class="sub">Coletor com threads · buffer em fila circular própria · leitura direta do <code>/proc</code></p>
+      <p class="sub">Coletor com threads · buffer em fila circular própria · <code>/proc</code>, API do Docker e health checks</p>
     </div>
     <div id="coletor" class="coletor" aria-live="polite">conectando ao coletor…</div>
   </header>
@@ -69,10 +69,27 @@
     </section>
 
     <section id="aba-containers" class="aba">
-      <p class="vazio">Status, CPU, memória com uso e limite, reinícios e OOMKilled de cada container. Chega na etapa P4.</p>
+      <article class="cartao">
+        <header><h2>Containers do projeto</h2><span id="containers-resumo" class="nota-topo"></span></header>
+        <div class="tabela-rolagem">
+          <table class="tabela">
+            <thead><tr>
+              <th>Serviço</th><th>Status</th><th>Health</th><th class="num">CPU</th>
+              <th class="mem">Memória (uso / limite)</th><th class="num">Reinícios</th><th>OOM</th>
+            </tr></thead>
+            <tbody id="containers"><tr><td colspan="7" class="nota">aguardando a primeira leitura…</td></tr></tbody>
+          </table>
+        </div>
+        <p class="nota">CPU: 100% = um núcleo inteiro. Memória sem o cache de arquivos que o kernel pode devolver, como no <code>docker stats</code>.</p>
+      </article>
     </section>
+
     <section id="aba-servicos" class="aba">
-      <p class="vazio">Health check, tempo de resposta, tempo no ar e linha do tempo de eventos. Chega na etapa P4.</p>
+      <div id="servicos" class="grade"></div>
+      <article class="cartao eventos">
+        <header><h2>Linha do tempo de eventos</h2><span id="eventos-contagem" class="nota-topo"></span></header>
+        <ol id="eventos" class="linha-do-tempo"><li class="nota">nenhum evento ainda</li></ol>
+      </article>
     </section>
   </main>
 
