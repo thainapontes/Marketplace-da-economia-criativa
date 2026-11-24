@@ -15,7 +15,8 @@
 | Etapa | Situação | Commit |
 |---|---|---|
 | P0 | ✅ plano | `426e482` |
-| P1 | ✅ Dockerfiles da API e do worker, da IA e do front; `compose.yaml` na raiz com `mem_limit` e healthchecks | este |
+| P1 | ✅ Dockerfiles da API e do worker, da IA e do front; `compose.yaml` na raiz com `mem_limit` e healthchecks | `23f17ed` |
+| P2 | ✅ `estruturas/`: Vetor fixo, lista, pilha, fila, fila circular thread-safe, tabela hash e árvore binária de busca, com 32 testes | este |
 
 **Validação da P1, em 24/11:** build das 3 imagens; `docker compose up -d` com os 5 serviços no ar, os 4 healthchecks
 `healthy` e nenhum reinício; site em `localhost:3000`; catálogo, login e recomendações com fonte "ia" pelo rewrite
@@ -26,6 +27,17 @@ entre 5% e 23% do limite de cada serviço.
 - No Podman sem root, o build precisa de `DOCKER_BUILDKIT=0`.
 - Containers criados pela API do Podman herdam `oom_score_adj` 200 e o `exec` dos healthchecks falha. Com 300 funciona, e isso está no `compose.yaml`.
 - `docker stats` pelo Podman corta o primeiro caractere do nome, "rigem-api-1". O coletor da P4 deve usar a API pelo socket, e não a saída do CLI.
+
+**Validação da P2, em 24/11:** `uv run python -m unittest discover -s testes` com 32 testes aprovados em 3 rodadas seguidas,
+incluindo 4 produtores e 3 consumidores trocando 20 mil itens por uma fila circular de 8 posições, sem perda nem
+duplicação. O teste `test_sem_colecoes_prontas` lê o código das estruturas e falha se aparecer list, dict, set,
+`sorted`, `.sort()` ou `collections`; a sabotagem dele confirma que acusa as 4 violações plantadas. Os testes acharam
+um bug antes do commit: `in` na tabela hash lançava erro em vez de devolver False.
+
+- O armazenamento por índice usa um array C de tamanho fixo via `ctypes`, e não a lista do Python.
+- A GIL esconde a condição de corrida: removendo a trava da fila circular, 4 threads × 3000 itens não perderam nada em
+  3 rodadas. O teste de threads prova que a fila funciona sob concorrência, mas não que pegaria a falta da trava. A
+  demonstração da P7 precisa alargar a janela entre ler e gravar, por exemplo com `time.sleep(0)` no meio.
 
 ---
 
