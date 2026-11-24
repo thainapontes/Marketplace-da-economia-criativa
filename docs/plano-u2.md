@@ -29,7 +29,7 @@
 | H2 | ✅ concluída em 21/11; falta enviar no Classroom (27/11) | #21 |
 | E | ✅ concluída em 21/11 | #22 |
 | F | ✅ concluída em 21/11 | #23 |
-| J (código) | ✅ concluída em 21/11; configuração de criação automática do banco e região dos serviços em revisão | #24, #29 (PR #29 aberto) |
+| J (código) | ✅ concluída; banco no Neon com criação automática e serviços em Ohio (PR #29, mergeado em 23/11). Falta publicar a API e a IA no Render | #24, #29 |
 | E.6 | ✅ sentimento e classificação da IA pela API | #25 |
 | G | ✅ G.1–G.8, frontend sem Fake API (assumida pelo Everton em 21/11) | #26 |
 | L | ✅ L.1–L.3 e L.5 (evidências locais); falta regravar as evidências no ambiente publicado e o vídeo | #27 |
@@ -37,7 +37,7 @@
 -  Testes da API: **149/149 aprovados**, 0 falhas, executados em 23/11/2026 na `main`, commit `72f8f51`, com Node.js `v24.16.0`.
   - Comando: `node --test testes/api/*.test.js` (executado dentro de `backend/`).
   - Evidência: `evidencias-u2/testes-api-2026-11-23.txt`.
-- O PR #29 (`U2 etapa J: banco criado na subida da API e serviços em Ohio`) é o único PR aberto informado nesta atualização; permanece aguardando revisão/merge.
+- O PR #29 (`U2 etapa J: banco criado na subida da API e serviços em Ohio`) foi mergeado em 23/11, assim como o #31 (limitações dos rótulos da IA). Em 24/11 não há PRs abertos.
 - **Equipe desde 20/11:** Everton = Web backend e frontend, FCCPD e IA; Thainá = frontend; Aline = BD;
   Drielly = Requisitos (Plano de Testes, validação e refatorações).
 - **Achado em aberto:** a view `vw_indicadores_artesao` soma pedidos cancelados e só conta `pendente`.
@@ -263,7 +263,7 @@ Cada commit troca um service mantendo as assinaturas (as telas não mudam).
 | G.7 | `feat(front): painel admin, avaliações e recomendações pela API` | depois de E (recomendações passam a chamar `/api/recomendacoes`, não a IA direto) |
 | G.8 | `refactor(front): remove a Fake API e os mocks` | no fim |
 
-**Apoio:** a Ana faz o smoke test e o aceite por persona a cada commit que entrar.
+**Apoio:** a Drielly faz o aceite por persona no ambiente publicado (a Ana, que faria o smoke test a cada commit, saiu do grupo).
 
 ---
 
@@ -301,7 +301,7 @@ Cada pessoa faz o **próprio** commit, na **própria** conta, na própria camada
 | Everton | backend | `refactor(backend): <smell> em <arquivo> — <técnica>` |
 | Thainá | frontend | `refactor(front): <smell> em <arquivo> — <técnica>` |
 | Drielly | SQL/seed | `refactor(sql): <smell> em <arquivo> — <técnica>` |
-| Ana | testes | `refactor(testes): <smell> em <arquivo> — <técnica>` |
+| ~~Ana~~ | testes | saiu do grupo; a camada de testes não teve commit próprio |
 | (quem coordenar) | — | `docs(refatoracao): registra smells, decisões e casos sem refatoração` → `docs/refatoracao/smells.md` |
 
 **Validação:** testes passando depois de cada commit (comportamento preservado).

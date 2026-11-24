@@ -32,7 +32,7 @@ conversam por **HTTP/REST** e por **mensageria** (a fila da Parte 1), sobre um P
 flowchart LR
     N[Navegador] -->|HTTP REST| F[Frontend<br/>Next.js · Vercel]
     F -->|HTTP REST<br/>JSON + cookie de sessão| A[API<br/>Node.js + Express]
-    F -->|HTTP REST<br/>recomendações| IA[Módulo de IA<br/>Python · BentoML]
+    A -->|HTTP REST<br/>recomendações, sentimento,<br/>classificação · timeout 2 s| IA[Módulo de IA<br/>Python · BentoML]
     A -->|SQL<br/>transação do checkout| DB[(PostgreSQL)]
     A -->|enfileira job<br/>na mesma transação| Q[[Fila<br/>tabela evento_assincrono]]
     Q -->|SKIP LOCKED<br/>consome e confirma| W[Worker<br/>Node.js]
@@ -47,19 +47,26 @@ flowchart LR
 | **Frontend** | `frontend/` | Telas e navegação | Roda no navegador e na Vercel; muda de ritmo diferente do backend |
 | **API** | `backend/src/server.js` | Regras de negócio, login, catálogo, carrinho e checkout seguro | É o único que **escreve** pedidos e estoque: as regras de concorrência da Parte 1 ficam num lugar só |
 | **Worker** | `backend/src/worker.js` | Consome a fila: notificações de pedido e processamento de imagem | Tira trabalho lento do caminho da resposta HTTP. Se cair, a API continua vendendo e os jobs esperam na fila. Pode ter várias cópias (`SKIP LOCKED`) |
-| **Módulo de IA** | `ia-recomendacao/service.py` | Recomendações por produto e por usuário | Outra linguagem (Python) e outro ciclo de vida. Se ficar lento ou cair, a vitrine continua: o frontend espera no máximo 2 s e segue sem ele (RF-08) |
+| **Módulo de IA** | `ia-recomendacao/service.py` | Recomendações por produto e por usuário, sentimento das avaliações e classificação de produtos | Outra linguagem (Python) e outro ciclo de vida. Se ficar lento ou cair, a vitrine continua: a API espera no máximo 2 s e responde com os mais vendidos (RF-08) |
 | **Lote de recomendações** | `ia-recomendacao/lote.py` | Recalcula a lista de todos os compradores de uma vez | Tarefa pesada de CPU que não pode rodar dentro de uma requisição: é o trecho paralelo (seção 2) |
 | **PostgreSQL** | `backend/sql/` | Dados e a fila | Fonte única da verdade; a fila no próprio banco permite enfileirar **na mesma transação** do pedido |
 
-> **Estado da integração em 20/11/2026:** a API, o worker, o módulo de IA, o lote e o banco já
-> funcionam como descrito, e as evidências da seção 6 chamam a API diretamente por HTTP. O
-> frontend já chama o módulo de IA; a troca da Fake API do frontend pelas chamadas à API está em
-> andamento, para a entrega de Web de 02/12.
+> **Estado da integração em 24/11/2026:** todos os serviços funcionam como descrito. Desde 21/11
+> o frontend não usa mais a Fake API: todas as telas falam com a API (PR #26), e a API é a única
+> que chama o módulo de IA, levando o usuário do login (PRs #22 e #25). As evidências da seção 6
+> foram geradas em 20/11, antes dessa troca, e por isso chamam a API e a IA direto por HTTP; o
+> caminho completo pelo navegador está em [`evidencias-u2/`](../evidencias-u2/README.md).
+>
+> **No deploy gratuito** o Render não oferece worker separado. Lá o worker roda dentro do processo
+> da API (`WORKER_EMBUTIDO=true`), mas continua consumindo a mesma fila no banco; numa hospedagem
+> paga ele volta a ser um processo à parte sem mudar o código.
 
 **Comunicação, por tipo:**
 
-- **HTTP/REST síncrono:** navegador → frontend → API, e frontend → módulo de IA. Contratos em
-  [`docs/api.md`](../docs/api.md) e nas rotas da AV1 de IA.
+- **HTTP/REST síncrono:** navegador → frontend → API, e API → módulo de IA
+  (`backend/src/utils/modulo-ia.js`). A API se identifica no log da IA como `backend`, envia o
+  usuário que ela mesma autenticou e desiste em 2 s. Contratos em [`docs/api.md`](../docs/api.md),
+  no Swagger em `/docs` e nas rotas do módulo de IA.
 - **Mensageria assíncrona:** API → fila → worker. A API grava o job na tabela
   `evento_assincrono` dentro da transação do pedido. O worker, outro processo, pega os jobs com
   `FOR UPDATE SKIP LOCKED`, processa e confirma. Se o pedido falhar, o job nunca existe; se o
@@ -260,9 +267,9 @@ e suba a API (`npm run api`), o worker (`npm run worker`) e o módulo de IA (`ju
   uso das listas prontas pela página inicial ficam para depois. Hoje a página inicial pede a
   recomendação na hora.
 - **O módulo de IA lê o banco direto.** É só leitura e só pelas funções de acesso, mas cria um
-  acoplamento pelo esquema do banco: mudar uma tabela pode exigir mudar o `dados.py`. Está
-  planejado que a API repasse as recomendações ao frontend, numa chamada API → IA, com o usuário
-  vindo do login.
+  acoplamento pelo esquema do banco: mudar uma tabela pode exigir mudar o `dados.py`. A outra
+  ponta já foi resolvida: desde 21/11 quem chama a IA é a API, com o usuário vindo do login, e
+  não mais o navegador.
 - **Uma máquina só.** O benchmark mede o ganho num computador com vários núcleos; distribuir o
   lote entre várias máquinas não foi feito nem medido.
 - **A hipótese do turbo**, na seção 5, item 2, não foi medida.

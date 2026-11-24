@@ -48,6 +48,16 @@ Módulos: checkout, pedidos e estoque. Cenários/fluxos: compra concorrente do m
 
 - **Teste do cenário:** Teste automatizado de concorrência/carga simulando múltiplos compradores enviando requisições simultâneas para adquirir o mesmo produto com estoque limitado (ex.: 1 unidade) durante um cenário de pico. O teste passa se a quantidade total de vendas confirmadas não ultrapassar o estoque disponível, o estoque final chegar a zero quando todas as unidades forem vendidas, nenhuma venda excedente ocorrer e as requisições sem estoque retornarem HTTP 409.
 
+
+## Nota de alinhamento com a implementação (24/11/2026)
+
+Esta nota não muda a decisão acima; ela registra **como o padrão foi aplicado no código do Origem**, para o ADR não ser lido como descrição literal da baixa de estoque.
+
+- **A baixa de estoque é síncrona e tem consistência forte, não eventual.** O checkout (`backend/src/services/checkout-seguro.service.js`) faz, numa única transação, `UPDATE produto SET estoque = estoque - :qtd WHERE id = :id AND estoque >= :qtd`, com os itens ordenados por `produto_id` para evitar deadlock. Se a linha não for atualizada, a transação é desfeita e a API responde **HTTP 409**. É isso que garante o cenário da seção Rastreabilidade: nunca se vende acima do estoque, e quem chega depois recebe 409 na hora, sem esperar uma fila.
+- **O padrão orientado a eventos está nos efeitos do pedido.** Na mesma transação do pedido, a API grava eventos na fila `evento_assincrono` (avisos ao comprador e aos artesãos, processamento de imagem). O worker, outro processo, consome a fila com `FOR UPDATE SKIP LOCKED` e pode ter várias cópias, que é a tática "replicar consumidores". Se o pedido falhar, o evento nunca existe; se o worker cair, o evento espera na fila.
+- **Por que a baixa não foi para a fila:** colocar o estoque atrás de uma fila obrigaria a responder "pedido recebido" antes de saber se havia saldo, com consistência eventual e compensação posterior. O relatório de FCCPD ([`RELATORIO.md`](../../RELATORIO.md), Parte 1, e [`fccpd-u2/RELATORIO.md`](../../fccpd-u2/RELATORIO.md), seção 1) descreve essa escolha e as alternativas descartadas.
+- **Verificação:** o teste de concorrência descrito acima existe e passa: `npm run evidencias` no `backend/` dispara compras simultâneas do mesmo produto e confere estoque final zero, nenhuma venda excedente e 409 para as demais.
+
 ---
 
 _Gerado pelo estudo dirigido de Arquitetura de Software · ADS020 · 2026.2._
