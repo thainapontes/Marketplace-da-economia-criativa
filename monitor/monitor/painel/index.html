@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitor · Origem</title>
+  <link rel="stylesheet" href="painel.css">
+</head>
+<body>
+  <header class="topo">
+    <div>
+      <h1>Monitor do Origem</h1>
+      <p class="sub">Coletor com threads · buffer em fila circular própria · leitura direta do <code>/proc</code></p>
+    </div>
+    <div id="coletor" class="coletor" aria-live="polite">conectando ao coletor…</div>
+  </header>
+
+  <nav class="abas" role="tablist">
+    <button role="tab" aria-selected="true" data-aba="hardware">1 · Hardware / SO</button>
+    <button role="tab" aria-selected="false" data-aba="containers">2 · Containers</button>
+    <button role="tab" aria-selected="false" data-aba="servicos">3 · Serviços</button>
+  </nav>
+
+  <main>
+    <section id="aba-hardware" class="aba ativa">
+      <div class="grade">
+        <article class="cartao largo">
+          <header><h2>CPU</h2><span id="cpu-total" class="numero">—</span></header>
+          <svg id="cpu-historico" class="historico" viewBox="0 0 300 60" preserveAspectRatio="none" aria-label="Histórico do uso total de CPU"></svg>
+          <h3>Por núcleo</h3>
+          <div id="cpu-nucleos" class="nucleos"></div>
+        </article>
+
+        <article class="cartao">
+          <header><h2>Memória</h2><span id="mem-pct" class="numero">—</span></header>
+          <div class="barra"><span id="mem-barra"></span></div>
+          <dl class="dados">
+            <dt>Usada</dt><dd id="mem-usada">—</dd>
+            <dt>Disponível</dt><dd id="mem-disp">—</dd>
+            <dt>Cache</dt><dd id="mem-cache">—</dd>
+            <dt>Swap</dt><dd id="mem-swap">—</dd>
+          </dl>
+          <svg id="mem-historico" class="historico" viewBox="0 0 300 60" preserveAspectRatio="none" aria-label="Histórico do uso de memória"></svg>
+        </article>
+
+        <article class="cartao">
+          <header><h2>Disco</h2></header>
+          <div id="discos"></div>
+        </article>
+
+        <article class="cartao">
+          <header><h2>Processos e threads</h2></header>
+          <div class="pares">
+            <div><span id="processos" class="numero grande">—</span><small>processos</small></div>
+            <div><span id="threads" class="numero grande">—</span><small>threads</small></div>
+          </div>
+          <p id="estados" class="nota"></p>
+        </article>
+
+        <article class="cartao">
+          <header><h2>Sistema</h2></header>
+          <dl class="dados">
+            <dt>Carga 1 / 5 / 15 min</dt><dd id="carga">—</dd>
+            <dt>Ligado há</dt><dd id="ligado">—</dd>
+            <dt>Última amostra</dt><dd id="instante">—</dd>
+          </dl>
+        </article>
+      </div>
+    </section>
+
+    <section id="aba-containers" class="aba">
+      <p class="vazio">Status, CPU, memória com uso e limite, reinícios e OOMKilled de cada container. Chega na etapa P4.</p>
+    </section>
+    <section id="aba-servicos" class="aba">
+      <p class="vazio">Health check, tempo de resposta, tempo no ar e linha do tempo de eventos. Chega na etapa P4.</p>
+    </section>
+  </main>
+
+  <script src="painel.js"></script>
+</body>
+</html>

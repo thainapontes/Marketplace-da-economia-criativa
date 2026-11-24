@@ -16,7 +16,8 @@
 |---|---|---|
 | P0 | ✅ plano | `426e482` |
 | P1 | ✅ Dockerfiles da API e do worker, da IA e do front; `compose.yaml` na raiz com `mem_limit` e healthchecks | `23f17ed` |
-| P2 | ✅ `estruturas/`: Vetor fixo, lista, pilha, fila, fila circular thread-safe, tabela hash e árvore binária de busca, com 32 testes | este |
+| P2 | ✅ `estruturas/`: Vetor fixo, lista, pilha, fila, fila circular thread-safe, tabela hash e árvore binária de busca, com 32 testes | `f0801e3` |
+| P3 | ✅ `monitor/`: coletor com a thread de hardware e a consumidora sobre a FilaCircular, API do coletor, painel com a tela 1; serviços `coletor` e `painel` no Compose | este |
 
 **Validação da P1, em 24/11:** build das 3 imagens; `docker compose up -d` com os 5 serviços no ar, os 4 healthchecks
 `healthy` e nenhum reinício; site em `localhost:3000`; catálogo, login e recomendações com fonte "ia" pelo rewrite
@@ -38,6 +39,16 @@ um bug antes do commit: `in` na tabela hash lançava erro em vez de devolver Fal
 - A GIL esconde a condição de corrida: removendo a trava da fila circular, 4 threads × 3000 itens não perderam nada em
   3 rodadas. O teste de threads prova que a fila funciona sob concorrência, mas não que pegaria a falta da trava. A
   demonstração da P7 precisa alargar a janela entre ler e gravar, por exemplo com `time.sleep(0)` no meio.
+
+**Validação da P3, em 24/11:** 8 testes do monitor com um `/proc` falso, em 3 rodadas: CPU pela diferença entre duas
+leituras, memória, processos, threads, discos, histórico limitado, uma medição que falha sem matar a thread e a API do
+coletor. Com o Compose, os 7 serviços ficam saudáveis e sem reinícios; o painel em `localhost:8080` mostra os mesmos
+números que `free`, `df` e `ls /proc` mostram na máquina, com 0 amostras perdidas. Print nos temas claro e escuro pelo
+Playwright, sem erros de JavaScript.
+
+- O coletor lê o `/proc` e a raiz da máquina montados somente leitura, com `security_opt: label=disable` só nele, nunca `:z`.
+- No Bazzite a raiz `/` é uma imagem somente leitura e o disco real aparece em vários pontos; o coletor escolhe um
+  ponto por dispositivo, com preferência por `/`, `/var` e `/home`.
 
 ---
 

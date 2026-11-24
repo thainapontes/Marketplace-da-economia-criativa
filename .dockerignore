@@ -1,0 +1,7 @@
+# Só vale para builds com contexto na raiz (hoje, só o monitor).
+# Os outros serviços usam a própria pasta como contexto e o .dockerignore de lá.
+*
+!estruturas
+!monitor
+**/.venv
+**/__pycache__

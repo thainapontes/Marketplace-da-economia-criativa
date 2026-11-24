@@ -1,7 +1,8 @@
 # ============================================================================
-# Origem completo em containers (PI 3 · AED + Infraestrutura de Software · P1)
+# Origem completo em containers (PI 3 · AED + Infraestrutura de Software)
 #
 #   docker compose up -d --build     sobe tudo; o site abre em http://localhost:3000
+#                                    e o painel do monitor em http://localhost:8080
 #   docker compose ps                status e saúde de cada serviço
 #   docker compose down              derruba (os dados ficam no volume)
 #   docker compose down -v           derruba e apaga o banco (o seed roda de novo)
@@ -115,6 +116,44 @@ services:
       api:
         condition: service_healthy
     mem_limit: 512m
+    oom_score_adj: *oom
+    restart: unless-stopped
+
+  # ------------------------------------------------------------ monitor (PI 3)
+  # Coletor: threads que medem a máquina (/proc), produtoras de um buffer em
+  # fila circular própria, e uma thread consumidora que mantém o estado.
+  coletor:
+    build:
+      context: .
+      dockerfile: monitor/Dockerfile
+    image: origem-monitor
+    environment:
+      PROC: /host/proc
+      RAIZ: /host/root
+    volumes:
+      # O /proc e a raiz da MÁQUINA, somente leitura: o coletor mede o host,
+      # não o próprio container. Nunca use :z aqui (reetiquetaria o sistema
+      # inteiro no SELinux); por isso o rótulo é desligado só neste serviço.
+      - /proc:/host/proc:ro
+      - /:/host/root:ro
+    security_opt:
+      - label=disable
+    mem_limit: 128m
+    oom_score_adj: *oom
+    restart: unless-stopped
+
+  painel:
+    image: origem-monitor
+    command: ["uv", "run", "--frozen", "--no-dev", "uvicorn", "monitor.painel_app:app", "--host", "0.0.0.0", "--port", "8080"]
+    environment:
+      PORTA: "8080"
+      COLETOR_URL: http://coletor:8001
+    ports:
+      - "8080:8080"
+    depends_on:
+      coletor:
+        condition: service_healthy
+    mem_limit: 128m
     oom_score_adj: *oom
     restart: unless-stopped
 
