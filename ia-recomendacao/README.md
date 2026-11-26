@@ -44,9 +44,19 @@ Deixe o `just serve` aberto e use outro terminal para o resto. Quando aparecer
 `Starting production HTTP BentoServer`, o serviço está no ar. A documentação interativa das
 rotas fica em <http://127.0.0.1:3001/api/docs>.
 
-> **Banco em outro endereço?** Defina `DATABASE_URL` (padrão
-> `postgres://origem:origem@localhost:5434/origem`). **Sem banco nenhum**, o módulo funciona
-> do mesmo jeito lendo o retrato `dados/catalogo.json` (é o caso difícil 6, abaixo).
+> **Porta 5434 ocupada?** Se o `docker compose up -d` reclamar de `port is already allocated`
+> (outro PostgreSQL na máquina), suba o banco em outra porta e aponte o módulo para ela:
+>
+> ```bash
+> ORIGEM_DB_PORTA=5440 docker compose up -d                                   # em backend/
+> export DATABASE_URL=postgres://origem:origem@localhost:5440/origem          # antes do just serve
+> ```
+>
+> O mesmo `DATABASE_URL` serve para um banco em qualquer outro endereço (padrão
+> `postgres://origem:origem@localhost:5434/origem`). Para os comandos `psql` da seção 3, o
+> `docker compose exec` não muda. **Sem banco nenhum**, o módulo funciona do mesmo jeito
+> lendo o retrato `dados/catalogo.json` (é o caso difícil 6, abaixo), mas aí a experiência
+> de mudar um dado não se aplica.
 
 Para conferir tudo de uma vez, há dois atalhos. `just testes` (= `bash testes/casos.sh`) roda
 10 casos HTTP com o serviço no ar e mostra OK ou FALHOU. `just testes-dados` roda os 39 testes

@@ -21,8 +21,9 @@ services:
     ports:
       # 5434 na máquina -> 5432 dentro do container.
       # Não usamos a porta padrão 5432 (nem a 5433) para não colidir com outros
-      # PostgreSQL já rodando nesta máquina.
-      - "5434:5432"
+      # PostgreSQL já rodando nesta máquina. Se a 5434 também estiver ocupada,
+      # suba com outra porta: ORIGEM_DB_PORTA=5440 docker compose up -d
+      - "${ORIGEM_DB_PORTA:-5434}:5432"
     volumes:
       - origem-pgdata:/var/lib/postgresql/data
       # ",z": em sistemas com SELinux (Fedora, Bazzite, RHEL) libera o
