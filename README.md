@@ -6,7 +6,7 @@ todo o país. Projeto Integrador do 4º semestre de ADS. O repositório reúne o
 o **módulo de IA** (BentoML: recomendação, sentimento e classificação) e a documentação de cada
 disciplina. O plano e o andamento da U2 estão em [`docs/plano-u2.md`](docs/plano-u2.md).
 
-**Equipe:** Ana Beatriz Lopes, Everton Nunes, Drielly Santiago e Thainá Pontes.
+**Equipe:** Everton Nunes Batista, Drielly Santiago, Thainá Pontes da Silva, Ana Beatriz Lopes e Dilvanir Aline.
 
 | Disciplina | Comece por |
 |---|---|
@@ -116,7 +116,7 @@ Passo a passo (Neon, Render e Vercel) e URLs publicadas: [`docs/deploy.md`](docs
 | | |
 |---|---|
 | **Grupo** | Origem |
-| **Integrantes** | Ana Beatriz Lopes, Everton Nunes Batista, Drielly Santiago e Thainá Pontes da Silva |
+| **Integrantes** | Everton Nunes Batista, Drielly Santiago, Thainá Pontes da Silva, Ana Beatriz Lopes e Dilvanir Aline |
 | **Turma** | Análise e Desenvolvimento de Sistemas (ADS) — 4º período, 2026.2 |
 | **Projeto** | Origem — Marketplace da Economia Criativa de Pernambuco |
 | **Módulo da AV1** | Recomendação de produtos (similaridade de atributos + histórico + popularidade) |
