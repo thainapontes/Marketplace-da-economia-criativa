@@ -1,0 +1,28 @@
+﻿                                                                   QUERY PLAN                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------
+ Hash Join  (cost=42.02..3697.47 rows=500 width=8) (actual time=1.392..242.750 rows=8333 loops=1)
+   Hash Cond: (p.tecnica_id = t.id)
+   Join Filter: (unaccent((((((p.nome)::text || ' '::text) || (u.nome)::text) || ' '::text) || (t.nome)::text)) ~~* unaccent('%bordado%'::text))
+   Rows Removed by Join Filter: 91677
+   Buffers: shared hit=2162
+   ->  Hash Join  (cost=40.75..3432.48 rows=100010 width=53) (actual time=0.357..38.840 rows=100010 loops=1)
+         Hash Cond: (p.artesao_id = u.id)
+         Buffers: shared hit=2146
+         ->  Seq Scan on produto p  (cost=0.00..3128.10 rows=100010 width=40) (actual time=0.016..12.046 rows=100010 loops=1)
+               Buffers: shared hit=2128
+         ->  Hash  (cost=28.11..28.11 rows=1011 width=29) (actual time=0.306..0.308 rows=1011 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 70kB
+               Buffers: shared hit=18
+               ->  Seq Scan on usuario u  (cost=0.00..28.11 rows=1011 width=29) (actual time=0.010..0.132 rows=1011 loops=1)
+                     Buffers: shared hit=18
+   ->  Hash  (cost=1.12..1.12 rows=12 width=18) (actual time=0.019..0.020 rows=12 loops=1)
+         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+         Buffers: shared hit=1
+         ->  Seq Scan on tecnica t  (cost=0.00..1.12 rows=12 width=18) (actual time=0.005..0.007 rows=12 loops=1)
+               Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=508
+ Planning Time: 3.930 ms
+ Execution Time: 244.033 ms
+(24 rows)
+
