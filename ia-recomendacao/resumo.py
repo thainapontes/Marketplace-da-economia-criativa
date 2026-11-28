@@ -66,7 +66,7 @@ def ler_catalogo() -> tuple[list[dict], list[int], str]:
 def contar(linhas: list[dict]) -> dict:
     por_funcao: dict[str, Counter] = defaultdict(Counter)
     lidos: Counter = Counter()  # registros devolvidos, somados por função
-    quem, fontes = Counter(), Counter()
+    quem, fontes, rotas = Counter(), Counter(), Counter()
     produtos_consultados, produtos_devolvidos, usuarios = Counter(), Counter(), Counter()
     erros: dict[str, list[dict]] = defaultdict(list)
     for linha in linhas:
@@ -74,6 +74,8 @@ def contar(linhas: list[dict]) -> dict:
         por_funcao[funcao][linha["resultado"]] += 1
         lidos[funcao] += linha.get("registros") or 0
         quem[linha["quem_chamou"]] += 1
+        if linha.get("rota"):  # logs anteriores a 27/11 não têm o campo
+            rotas[linha["rota"]] += 1
         if linha.get("fonte"):
             fontes[linha["fonte"]] += 1
         parametros = linha.get("parametros") or {}
@@ -85,7 +87,7 @@ def contar(linhas: list[dict]) -> dict:
             usuarios[parametros["usuario_id"]] += 1
         if linha["resultado"] == "erro":
             erros[linha.get("erro", "sem motivo registrado")].append(linha)
-    return {"por_funcao": por_funcao, "lidos": lidos, "quem": quem, "fontes": fontes, "erros": erros,
+    return {"por_funcao": por_funcao, "lidos": lidos, "quem": quem, "rotas": rotas, "fontes": fontes, "erros": erros,
             "consultados": produtos_consultados, "devolvidos": produtos_devolvidos, "usuarios": usuarios}
 
 
@@ -132,6 +134,8 @@ def montar(linhas: list[dict], produtos: list[dict], compradores: list[int], fon
 
     escreve("## Quem chamou e de onde vieram os dados\n")
     escreve("Quem chamou: " + ", ".join(f"{q} {n}" for q, n in c["quem"].most_common()) + ".  ")
+    if c["rotas"]:
+        escreve("Por rota ou ferramenta: " + ", ".join(f"`{r}` {n}" for r, n in c["rotas"].most_common()) + ".  ")
     escreve("Fonte: " + (", ".join(f"{f} {n}" for f, n in c["fontes"].most_common()) or "nenhuma") + ".\n")
 
     escreve("## Produtos mais usados\n")

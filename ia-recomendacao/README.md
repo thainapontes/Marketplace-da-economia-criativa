@@ -223,14 +223,14 @@ As três chamadas geram 8 linhas. Tirando o campo `duracao_ms`, e com outra data
 ficam assim:
 
 ```json
-{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "buscar_produto", "quem_chamou": "api", "parametros": {"produto_id": 1}, "fonte": "banco", "resultado": "sucesso", "registros": 1, "ids": [1]}
-{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "listar_produtos", "quem_chamou": "api", "parametros": {}, "fonte": "banco", "resultado": "sucesso", "registros": 13}
-{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "recomendar_por_produto", "quem_chamou": "api", "parametros": {"produto_id": 1, "limite": 4}, "fonte": "banco", "resultado": "sucesso", "registros": 4, "ids": [5, 9, 3, 11]}
-{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "historico_do_usuario", "quem_chamou": "api", "parametros": {"usuario_id": 13}, "fonte": "banco", "resultado": "sucesso", "registros": 0, "ids": []}
-{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "listar_produtos", "quem_chamou": "api", "parametros": {}, "fonte": "banco", "resultado": "sucesso", "registros": 13}
-{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "recomendar_por_usuario", "quem_chamou": "api", "parametros": {"usuario_id": 13, "limite": 5}, "fonte": "banco", "resultado": "sucesso", "registros": 5, "ids": [3, 11, 4, 1, 2]}
-{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "buscar_produto", "quem_chamou": "api", "parametros": {"produto_id": 999}, "fonte": "banco", "resultado": "nao-encontrado", "registros": 0}
-{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "recomendar_por_produto", "quem_chamou": "api", "parametros": {"produto_id": 999, "limite": 4}, "fonte": "banco", "resultado": "nao-encontrado", "registros": 0}
+{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "buscar_produto", "quem_chamou": "api", "rota": "GET /api/produtos/{produto_id}/recomendados", "parametros": {"produto_id": 1}, "fonte": "banco", "resultado": "sucesso", "registros": 1, "ids": [1]}
+{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "listar_produtos", "quem_chamou": "api", "rota": "GET /api/produtos/{produto_id}/recomendados", "parametros": {}, "fonte": "banco", "resultado": "sucesso", "registros": 13}
+{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "recomendar_por_produto", "quem_chamou": "api", "rota": "GET /api/produtos/{produto_id}/recomendados", "parametros": {"produto_id": 1, "limite": 4}, "fonte": "banco", "resultado": "sucesso", "registros": 4, "ids": [5, 9, 3, 11]}
+{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "historico_do_usuario", "quem_chamou": "api", "rota": "GET /api/usuarios/{usuario_id}/recomendados", "parametros": {"usuario_id": 13}, "fonte": "banco", "resultado": "sucesso", "registros": 0, "ids": []}
+{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "listar_produtos", "quem_chamou": "api", "rota": "GET /api/usuarios/{usuario_id}/recomendados", "parametros": {}, "fonte": "banco", "resultado": "sucesso", "registros": 13}
+{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "recomendar_por_usuario", "quem_chamou": "api", "rota": "GET /api/usuarios/{usuario_id}/recomendados", "parametros": {"usuario_id": 13, "limite": 5}, "fonte": "banco", "resultado": "sucesso", "registros": 5, "ids": [3, 11, 4, 1, 2]}
+{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "buscar_produto", "quem_chamou": "api", "rota": "GET /api/produtos/{produto_id}/recomendados", "parametros": {"produto_id": 999}, "fonte": "banco", "resultado": "nao-encontrado", "registros": 0}
+{"data_hora": "2026-11-21T09:57:26-03:00", "funcao": "recomendar_por_produto", "quem_chamou": "api", "rota": "GET /api/produtos/{produto_id}/recomendados", "parametros": {"produto_id": 999, "limite": 4}, "fonte": "banco", "resultado": "nao-encontrado", "registros": 0}
 ```
 
 **Três linhas que mostram o uso dos dados:**
@@ -247,6 +247,7 @@ ficam assim:
 | `data_hora` | quando a função foi chamada (hora local, com fuso) |
 | `funcao` | nome da função de dados ou da rota |
 | `quem_chamou` | `frontend`, `backend`, `teste`, `lote`, `script` ou `api` (chamada direta, sem identificação). Vem do header `X-Origem-Chamador` ou da variável `ORIGEM_CHAMADOR` |
+| `rota` | a rota ou ferramenta que fez a chamada: a rota HTTP, como `GET /api/produtos/{produto_id}/recomendados`, ou o nome do script, como `lote.py`. Fora do serviço, pode ser definida pela variável `ORIGEM_ROTA` |
 | `parametros` | os argumentos da função, **só ids e números**: nenhum nome, e-mail ou texto livre |
 | `fonte` | `banco` ou `retrato` (quando o banco estava fora do ar) |
 | `resultado` | `sucesso`, `nao-encontrado` ou `erro` |
@@ -255,7 +256,7 @@ ficam assim:
 | `erro` | tipo e motivo do erro, só quando `resultado` = `erro` |
 | `duracao_ms` | quanto tempo a chamada levou |
 
-O arquivo [`exemplos/uso_dados.jsonl`](exemplos/uso_dados.jsonl) é um log completo, gerado com
+O arquivo [`exemplos/uso_dados.jsonl`](exemplos/uso_dados.jsonl) foi gravado em 21/11, antes de o campo `rota` existir, e por isso não o traz; o resto é igual. É um log completo, gerado com
 as três chamadas acima, `just testes`, uma chamada de sentimento, uma de classificação, o lote
 do FCCPD e uma leitura com o banco desligado. É dele que saem as respostas da seção 6.
 

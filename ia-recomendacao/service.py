@@ -85,9 +85,12 @@ def _usuario_autenticado(request: Request) -> int | None:
 
 
 def _definir_chamador(request: Request) -> None:
-    """Quem chamou, para o log de uso: header X-Origem-Chamador (backend, frontend, teste...)."""
+    """Quem chamou, para o log de uso: header X-Origem-Chamador (backend, frontend, teste...) e a rota."""
     valor = request.headers.get("x-origem-chamador", "").strip().lower()
     uso.quem_chamou.set(valor if valor in uso.CHAMADORES else "api")
+    rota = request.scope.get("route")
+    caminho = getattr(rota, "path", request.url.path)
+    uso.rota.set(f"{request.method} {request.scope.get('root_path', '')}{caminho}")
 
 
 async def _executar(request: Request, funcao, *, _indisponivel: str = INDISPONIVEL,
