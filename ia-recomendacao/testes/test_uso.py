@@ -21,7 +21,7 @@ import resumo  # noqa: E402
 import uso  # noqa: E402
 
 BANCO_DESLIGADO = "postgres://origem:origem@127.0.0.1:1/origem"
-CAMPOS = {"data_hora", "funcao", "quem_chamou", "parametros", "fonte", "resultado", "registros", "duracao_ms"}
+CAMPOS = {"data_hora", "funcao", "quem_chamou", "rota", "parametros", "fonte", "resultado", "registros", "duracao_ms"}
 
 
 class LogDeUso(unittest.TestCase):

@@ -7,6 +7,8 @@ uma linha JSON em logs/uso_dados.jsonl com:
   data_hora     quando foi chamada (hora local, com fuso)
   funcao        o nome da função
   quem_chamou   backend, frontend, teste, script ou api (ver CHAMADORES)
+  rota          a rota HTTP (ex.: GET /api/produtos/{produto_id}/recomendados)
+                ou o script que fez a chamada (ex.: lote.py)
   parametros    os argumentos, só ids e números (nada de nome, e-mail ou texto livre)
   fonte         de onde vieram os dados: banco ou retrato (o JSON de reserva)
   resultado     sucesso, nao-encontrado ou erro
@@ -25,6 +27,7 @@ from __future__ import annotations
 import functools
 import json
 import os
+import sys
 import threading
 import time
 from contextvars import ContextVar
@@ -39,6 +42,10 @@ CHAMADORES = {"backend", "frontend", "teste", "script", "api", "lote", "resumo"}
 
 _padrao = os.environ.get("ORIGEM_CHAMADOR", "script")
 quem_chamou: ContextVar[str] = ContextVar("quem_chamou", default=_padrao if _padrao in CHAMADORES else "script")
+# Qual rota ou ferramenta chamou. O serviço HTTP define a rota a cada requisição;
+# fora dele vale a variável ORIGEM_ROTA ou o nome do script (lote.py, classificar.py...).
+_rota_padrao = os.environ.get("ORIGEM_ROTA") or Path(sys.argv[0]).name or "script"
+rota: ContextVar[str] = ContextVar("rota", default=_rota_padrao)
 ativo: ContextVar[bool] = ContextVar("ativo", default=True)  # o resumo desliga para não se registrar
 _trava = threading.Lock()
 
@@ -53,6 +60,7 @@ def registrar(funcao: str, parametros: dict, resultado: str, registros: int = 0,
         "data_hora": datetime.now().astimezone().isoformat(timespec="seconds"),
         "funcao": funcao,
         "quem_chamou": quem_chamou.get(),
+        "rota": rota.get(),
         "parametros": parametros,
         "fonte": fonte,
         "resultado": resultado,
