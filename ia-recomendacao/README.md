@@ -2,6 +2,9 @@
 
 Projeto Final de IA Aplicada (U2), do grupo **Origem**, turma de ADS do 4º período, 2026.2.
 
+**Integrantes:** Everton Nunes Batista, Drielly Santiago, Thainá Pontes da Silva, Ana Beatriz
+Lopes e Dilvanir Aline.
+
 O módulo é um serviço HTTP (BentoML com uma app FastAPI em `/api`, na porta 3001) que o
 marketplace Origem consome. Ele faz três coisas, todas por **regra simples, sem treinar
 modelo**:
